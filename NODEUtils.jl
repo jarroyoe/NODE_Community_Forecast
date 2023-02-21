@@ -4,6 +4,18 @@ using Plots
 using DelimitedFiles, Serialization
 rng = Random.default_rng()
 
+#Set up structs
+struct NODE
+    chain
+    parameters
+end
+
+struct UDE
+    chain
+    parameters
+    knownDynamics
+end
+
 #Model architectures
 function denseLayersLux(inputSize,hiddenSize;functions=nothing)
     if isnothing(functions)
@@ -27,9 +39,9 @@ end
 
 
 #Training and testing models
-function trainNODEModel(architecture,training_data)
-    p, st = Lux.setup(rng,architecture)
-    neuralode = NeuralODE(architecture, (Float32(1),Float32(size(training_data,2))), AutoTsit5(Rosenbrock23()),saveat=1)
+function trainNODEModel(chain,training_data)
+    p, st = Lux.setup(rng,chain)
+    neuralode = NeuralODE(chain, (Float32(1),Float32(size(training_data,2))), AutoTsit5(Rosenbrock23()),saveat=1)
 
     function predict_neuralode(p)
         Array(neuralode(training_data[:,1], p,st)[1])
@@ -74,18 +86,18 @@ function trainNODEModel(architecture,training_data)
     return result_neuralode2.u
 end
 
-function testNODEModel(params,architecture,x0,T)
-    p, st = Lux.setup(rng,architecture)
-    neuralode = NeuralODE(architecture,(Float32(0),Float32(T)),AutoTsit5(Rosenbrock23()),saveat=1)
+function testNODEModel(params,chain,x0,T)
+    p, st = Lux.setup(rng,chain)
+    neuralode = NeuralODE(chain,(Float32(0),Float32(T)),AutoTsit5(Rosenbrock23()),saveat=1)
     return Array(neuralode(x0,params,st)[1])                                                                                                                                                                                                                                                                                                                 
 end
 
 #SDE Models WIP
-# function trainSDEModel(driftArchitecture,diffusionArchitecture,training_data)
-#     p1, re1 = Flux.destructure(driftArchitecture)
-#     p2, re2 = Flux.destructure(diffusionArchitecture)
+# function trainSDEModel(driftchain,diffusionchain,training_data)
+#     p1, re1 = Flux.destructure(driftchain)
+#     p2, re2 = Flux.destructure(diffusionchain)
 
-#     neuralsde = NeuralDSDE(driftArchitecture,diffusionArchitecture,(Float32(1),Float32(size(training_data,2))),SOSRI(),saveat = 1)
+#     neuralsde = NeuralDSDE(driftchain,diffusionchain,(Float32(1),Float32(size(training_data,2))),SOSRI(),saveat = 1)
 
 #     function predict_neuralsde(p,u=training_data[:,1])
 #         Array(neuralsde(u, p))
@@ -140,8 +152,8 @@ end
 #     return result2
 # end
 
-# function testSDEModel(params,driftArchitecture,diffusionArchitecture,x0,T)
-#     neuralsde = NeuralSDE(driftArchitecture,diffusionArchitecture,(Float32(0),Float32(T)),SOSRI(),saveat = 1)
+# function testSDEModel(params,driftchain,diffusionchain,x0,T)
+#     neuralsde = NeuralSDE(driftchain,diffusionchain,(Float32(0),Float32(T)),SOSRI(),saveat = 1)
     
 #     function loss_function(p;n=100)
 #         u = repeat(reshape(x0, :, 1), 1, n)
@@ -158,14 +170,14 @@ end
 #     return means,vars
 # end
 
-function trainUDEModel(architecture,knownDynamics,training_data;needed_ps = Float32[],p_true = Float32[])
-    ps, st = Lux.setup(rng, architecture)
+function trainUDEModel(chain,knownDynamics,training_data;needed_ps = Float32[],p_true = Float32[])
+    ps, st = Lux.setup(rng, chain)
 
-    ps_dynamics = Lux.ComponentArray((predefined_params = rand(Float32, length(needed_ps)), model_params = ps))
+    ps_dynamics = Lux.ComponentArray((predefined_params = rand(Float32, needed_ps), model_params = ps))
 
     function ude!(du,u,p,t,q)
-        knownPred = knownDynamics(u,ps_dynamics.predefined_params,q)
-        nnPred = architecture(u,ps_dynamics.model_params,st)
+        knownPred = knownDynamics(u,p.predefined_params,q)
+        nnPred = Array(chain(u,p.model_params,st)[1])
 
         for i in 1:length(u)
             du[i] = knownPred[i]+nnPred[i]
@@ -180,9 +192,8 @@ function trainUDEModel(architecture,knownDynamics,training_data;needed_ps = Floa
     # Define a predictor
     function predict(p, X = training_data[:,1], T = 1:size(training_data,2))
         _prob = remake(prob_nn, u0 = X, tspan = (T[1], T[end]), p = p)
-        Array(solve(_prob, AutoTsit5(Rosenbrock23()), saveat = T,
-                abstol=1e-6, reltol=1e-6,
-                sensealg = ForwardDiffSensitivity()
+        Array(solve(_prob, Tsit5(), saveat = T,
+                abstol=1e-6, reltol=1e-6
                 ))
     end
 
@@ -208,7 +219,7 @@ function trainUDEModel(architecture,knownDynamics,training_data;needed_ps = Floa
     # favourable starting positing for BFGS
     adtype = Optimization.AutoZygote()
     optf = Optimization.OptimizationFunction((x,p)->loss(x), adtype)
-    optprob = Optimization.OptimizationProblem(optf, ComponentVector{Float64}(p))
+    optprob = Optimization.OptimizationProblem(optf, ps_dynamics)
     res1 = Optimization.solve(optprob, ADAM(0.1), callback=callback, maxiters = 200)
     println("Training loss after $(length(losses)) iterations: $(losses[end])")
     # Train with BFGS
@@ -219,12 +230,12 @@ function trainUDEModel(architecture,knownDynamics,training_data;needed_ps = Floa
     return res2.minimizer
 end
 
-function testUDEModel(params,architecture,knownDynamics,x0,T;p_true = nothing)
-    ps, st = Lux.setup(rng, architecture)
+function testUDEModel(params,chain,knownDynamics,x0,T;p_true = nothing)
+    ps, st = Lux.setup(rng, chain)
     
     function ude!(du,u,p,t,q)
         knownPred = knownDynamics(u,params.predefined_params,q)
-        nnPred = architecture(u,params.model_params,st)
+        nnPred = chain(u,params.model_params,st)
 
         for i in 1:length(u)
             du[i] = knownPred[i]+nnPred[i]
@@ -245,14 +256,11 @@ function normalizedResiduals(predicted,observed)
     (observed.-predicted)./observed
 end
 
-function saveNeuralNetwork(parameters,architecture;fileName = "fit_neural_network")
-    serialize(fileName*"_parameters.jls",parameters)
-    serialize(fileName*"_architecture.jls",architecture)
+function saveNeuralNetwork(model;fileName = "fit_neural_network")
+    serialize(fileName*".jls",model)
 end
 
-function loadNeuralNetwork(fileName)
-    nn = deserialize(fileName*"_architecture.jls")
-    params = deserialize(fileName*"_parameters.jls")
 
-    return nn,params
+function loadNeuralNetwork(fileName)
+    return deserialize(fileName)
 end
