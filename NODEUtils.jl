@@ -1,17 +1,17 @@
-using Flux, Lux, DiffEqFlux, DifferentialEquations, Optimization, OptimizationOptimJL, OptimizationOptimisers
-using Random, StatsBase
-using Plots
+using OrdinaryDiffEq, ModelingToolkit, DataDrivenDiffEq, SciMLSensitivity, DataDrivenSparse
+using Optimization, OptimizationOptimisers, OptimizationOptimJL
+using ComponentArrays, Lux, Zygote, Plots, Random, StatsBase
 using DelimitedFiles, Serialization
 rng = Random.default_rng()
 
 #Set up structs
 struct NODE
-    chain
+    neuralNetwork
     parameters
 end
 
 struct UDE
-    chain
+    neuralNetwork
     parameters
     knownDynamics
 end
@@ -27,21 +27,10 @@ function denseLayersLux(inputSize,hiddenSize;functions=nothing)
     return nn
 end
 
-function denseLayersFlux(inputSize,hiddenSize;functions=nothing)
-    if isnothing(functions)
-        functions = [tanh,tanh]
-    end
-    nn = Flux.Chain(Flux.Dense(inputSize,hiddenSize[1],functions[1]),
-                    Flux.Dense(hiddenSize[1],hiddenSize[2],functions[2]),
-                    Flux.Dense(hiddenSize[2],inputSize))
-    return nn
-end
-
-
 #Training and testing models
-function trainNODEModel(chain,training_data)
-    p, st = Lux.setup(rng,chain)
-    neuralode = NeuralODE(chain, (Float32(1),Float32(size(training_data,2))), AutoTsit5(Rosenbrock23()),saveat=1)
+function trainNODEModel(neuralNetwork,training_data)
+    p, st = Lux.setup(rng,neuralNetwork)
+    neuralode = NeuralODE(neuralNetwork, (Float32(1),Float32(size(training_data,2))), AutoTsit5(Rosenbrock23()),saveat=1)
 
     function predict_neuralode(p)
         Array(neuralode(training_data[:,1], p,st)[1])
@@ -53,19 +42,17 @@ function trainNODEModel(chain,training_data)
         return loss, pred
     end
 
-    callback = function (p, l, pred; doplot = true)
-        println(l)
-        # plot current prediction against data
-        if doplot
-          plt = scatter(1:size(training_data,2), training_data[1,:], label = "data")
-          scatter!(plt, 1:size(training_data,2), pred[1,:], label = "prediction")
-          display(plot(plt))
-        end
-        return false  
-    end
+    losses = Float64[]
 
-    pinit = Lux.ComponentArray(p)
-    callback(pinit, loss_function(pinit)...; doplot=true)
+    callback = function (p, l)
+        push!(losses, l)
+      if length(losses)%50==0
+            println("Current loss after $(length(losses)) iterations: $(losses[end])")
+      end
+      return false
+      end
+
+    pinit = ComponentVector(p)
 
     adtype = Optimization.AutoZygote()
     optf = Optimization.OptimizationFunction((x, p) -> loss_function(x), adtype)
@@ -83,21 +70,21 @@ function trainNODEModel(chain,training_data)
                                             allow_f_increases = false)
 
 
-    return result_neuralode2.u
+    return result_neuralode2.u, losses
 end
 
-function testNODEModel(params,chain,x0,T)
-    p, st = Lux.setup(rng,chain)
-    neuralode = NeuralODE(chain,(Float32(0),Float32(T)),AutoTsit5(Rosenbrock23()),saveat=1)
+function testNODEModel(params,neuralNetwork,x0,T)
+    p, st = Lux.setup(rng,neuralNetwork)
+    neuralode = NeuralODE(neuralNetwork,(Float32(0),Float32(T)),AutoTsit5(Rosenbrock23()),saveat=1)
     return Array(neuralode(x0,params,st)[1])                                                                                                                                                                                                                                                                                                                 
 end
 
 #SDE Models WIP
-# function trainSDEModel(driftchain,diffusionchain,training_data)
-#     p1, re1 = Flux.destructure(driftchain)
-#     p2, re2 = Flux.destructure(diffusionchain)
+# function trainSDEModel(driftneuralNetwork,diffusionneuralNetwork,training_data)
+#     p1, re1 = Flux.destructure(driftneuralNetwork)
+#     p2, re2 = Flux.destructure(diffusionneuralNetwork)
 
-#     neuralsde = NeuralDSDE(driftchain,diffusionchain,(Float32(1),Float32(size(training_data,2))),SOSRI(),saveat = 1)
+#     neuralsde = NeuralDSDE(driftneuralNetwork,diffusionneuralNetwork,(Float32(1),Float32(size(training_data,2))),SOSRI(),saveat = 1)
 
 #     function predict_neuralsde(p,u=training_data[:,1])
 #         Array(neuralsde(u, p))
@@ -152,8 +139,8 @@ end
 #     return result2
 # end
 
-# function testSDEModel(params,driftchain,diffusionchain,x0,T)
-#     neuralsde = NeuralSDE(driftchain,diffusionchain,(Float32(0),Float32(T)),SOSRI(),saveat = 1)
+# function testSDEModel(params,driftneuralNetwork,diffusionneuralNetwork,x0,T)
+#     neuralsde = NeuralSDE(driftneuralNetwork,diffusionneuralNetwork,(Float32(0),Float32(T)),SOSRI(),saveat = 1)
     
 #     function loss_function(p;n=100)
 #         u = repeat(reshape(x0, :, 1), 1, n)
@@ -170,14 +157,17 @@ end
 #     return means,vars
 # end
 
-function trainUDEModel(chain,knownDynamics,training_data;needed_ps = Float32[],p_true = Float32[])
-    ps, st = Lux.setup(rng, chain)
+function trainUDEModel(neuralNetwork,knownDynamics,training_data;needed_ps = Float32[],p_true = Float32[])
+    ps, st = Lux.setup(rng, neuralNetwork)
 
-    ps_dynamics = Lux.ComponentArray((predefined_params = rand(Float32, needed_ps), model_params = ps))
+    #ps_dynamics = Lux.ComponentArray((predefined_params = rand(Float32, needed_ps), model_params = ps))
+    
 
     function ude!(du,u,p,t,q)
-        knownPred = knownDynamics(u,p.predefined_params,q)
-        nnPred = Array(chain(u,p.model_params,st)[1])
+        #knownPred = knownDynamics(u,p.predefined_params,q)
+        knownPred = knownDynamics(u,nothing,q)
+        #nnPred = Array(neuralNetwork(u,p.model_params,st)[1])
+        nnPred = Array(neuralNetwork(u,p,st)[1])
 
         for i in 1:length(u)
             du[i] = knownPred[i]+nnPred[i]
@@ -187,7 +177,7 @@ function trainUDEModel(chain,knownDynamics,training_data;needed_ps = Float32[],p
     # Closure with the known parameter
     nn_dynamics!(du,u,p,t) = ude!(du,u,p,t,p_true)
     # Define the problem
-    prob_nn = ODEProblem(nn_dynamics!,training_data[:, 1], (Float32(1),Float32(size(training_data,2))), ps_dynamics)
+    prob_nn = ODEProblem(nn_dynamics!,training_data[:, 1], (Float32(1),Float32(size(training_data,2))), ps)
     ## Function to train the network
     # Define a predictor
     function predict(p, X = training_data[:,1], T = 1:size(training_data,2))
@@ -198,7 +188,7 @@ function trainUDEModel(chain,knownDynamics,training_data;needed_ps = Float32[],p
     end
 
     # Simple L2 loss
-    function loss(p)
+    function loss_function(p)
         X̂ = predict(p)
         sum(abs2, training_data .- X̂)
     end
@@ -214,28 +204,34 @@ function trainUDEModel(chain,knownDynamics,training_data;needed_ps = Float32[],p
     end
 
     ## Training
+    pinit = ComponentVector(ps)
+    #callback(pinit, loss_function(pinit)...; doplot=true)
 
-    # First train with ADAM for better convergence -> move the parameters into a
-    # favourable starting positing for BFGS
     adtype = Optimization.AutoZygote()
-    optf = Optimization.OptimizationFunction((x,p)->loss(x), adtype)
-    optprob = Optimization.OptimizationProblem(optf, ps_dynamics)
-    res1 = Optimization.solve(optprob, ADAM(0.1), callback=callback, maxiters = 200)
-    println("Training loss after $(length(losses)) iterations: $(losses[end])")
-    # Train with BFGS
-    optprob2 = Optimization.OptimizationProblem(optf, res1.minimizer)
-    res2 = Optimization.solve(optprob2, Optim.BFGS(initial_stepnorm=0.01), callback=callback, maxiters = 10000)
-    println("Final training loss after $(length(losses)) iterations: $(losses[end])")
+    optf = Optimization.OptimizationFunction((x, p) -> loss_function(x), adtype)
+    optprob = Optimization.OptimizationProblem(optf, pinit)
 
-    return res2.minimizer
+    result_neuralode = Optimization.solve(optprob,
+                                           ADAM(),
+                                           callback = callback,
+                                           maxiters = 300)
+
+    optprob2 = remake(optprob,u0 = result_neuralode.u)
+    result_neuralode2 = Optimization.solve(optprob2,
+                                            Optim.BFGS(initial_stepnorm=0.01),
+                                            callback=callback,
+                                            allow_f_increases = false)
+
+
+    return result_neuralode2.u, losses
 end
 
-function testUDEModel(params,chain,knownDynamics,x0,T;p_true = nothing)
-    ps, st = Lux.setup(rng, chain)
+function testUDEModel(params,neuralNetwork,knownDynamics,x0,T;p_true = nothing)
+    ps, st = Lux.setup(rng, neuralNetwork)
     
     function ude!(du,u,p,t,q)
         knownPred = knownDynamics(u,params.predefined_params,q)
-        nnPred = chain(u,params.model_params,st)
+        nnPred = neuralNetwork(u,params.model_params,st)
 
         for i in 1:length(u)
             du[i] = knownPred[i]+nnPred[i]
