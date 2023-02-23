@@ -15,6 +15,7 @@ struct UDE
     parameters
     knownDynamics
 end
+function knownDynamics end #create function to point methods of UDE objects to
 
 #Model architectures
 function denseLayersLux(inputSize,hiddenSize;functions=nothing)
@@ -230,8 +231,8 @@ function testUDEModel(params,neuralNetwork,knownDynamics,x0,T;p_true = nothing)
     ps, st = Lux.setup(rng, neuralNetwork)
     
     function ude!(du,u,p,t,q)
-        knownPred = knownDynamics(u,params.predefined_params,q)
-        nnPred = neuralNetwork(u,params.model_params,st)
+        knownPred = knownDynamics(u,nothing,q)
+        nnPred = neuralNetwork(u,params,st)
 
         for i in 1:length(u)
             du[i] = knownPred[i]+nnPred[i]
@@ -241,9 +242,10 @@ function testUDEModel(params,neuralNetwork,knownDynamics,x0,T;p_true = nothing)
     nn_dynamics!(du,u,p,t) = ude!(du,u,p,t,p_true)
     # Define the problem
     prob_nn = ODEProblem(nn_dynamics!,x0, (Float32(1),Float32(T)), params)
-
-
-
+    prediction = Array(solve(prob_nn, Tsit5(), saveat = 1,
+                abstol=1e-6, reltol=1e-6
+                ))
+    return prediction
 end
 
 #Other functions
@@ -252,10 +254,15 @@ function normalizedResiduals(predicted,observed)
     (observed.-predicted)./observed
 end
 
-function saveNeuralNetwork(model;fileName = "fit_neural_network")
+function saveNeuralNetwork(model::NODE,fileName = "fit_neural_network")
     serialize(fileName*".jls",model)
 end
 
+function saveNeuralNetwork(model::UDE,fileName = "fit_neural_network")
+    methodToSave = methods(model.knownDynamics)[1]
+    modelToSave = UDE(model.neuralNetwork,model.parameters,methodToSave)
+    serialize(fileName*".jls",modelToSave)
+end
 
 function loadNeuralNetwork(fileName)
     return deserialize(fileName)
