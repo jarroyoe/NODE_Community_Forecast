@@ -254,6 +254,12 @@ function normalizedResiduals(predicted,observed)
     (observed.-predicted)./observed
 end
 
+function rowwiseCoefficientOfVariation(data)
+    [variation(data[:,i]) for i in 1:size(data,2)]
+end
+
+#Save functions
+
 function saveNeuralNetwork(model::NODE,fileName = "fit_neural_network")
     serialize(fileName*".jls",model)
 end
