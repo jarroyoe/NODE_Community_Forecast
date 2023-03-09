@@ -1,4 +1,4 @@
-using OrdinaryDiffEq, ModelingToolkit, DataDrivenDiffEq, SciMLSensitivity, DataDrivenSparse
+using OrdinaryDiffEq, ModelingToolkit, DataDrivenDiffEq, SciMLSensitivity, DataDrivenSparse, DiffEqFlux
 using Optimization, OptimizationOptimisers, OptimizationOptimJL
 using ComponentArrays, Lux, Zygote, Plots, Random, StatsBase
 using DelimitedFiles, Serialization
@@ -43,7 +43,7 @@ function trainNODEModel(neuralNetwork,training_data)
         return loss, pred
     end
 
-    losses = Float64[]
+    losses = Float32[]
 
     callback = function (p, l)
         push!(losses, l)
@@ -61,13 +61,13 @@ function trainNODEModel(neuralNetwork,training_data)
 
     result_neuralode = Optimization.solve(optprob,
                                            ADAM(0.005),
-                                           callback = callback,
+                                           #callback = callback,
                                            maxiters = 300)
 
     optprob2 = remake(optprob,u0 = result_neuralode.u)
     result_neuralode2 = Optimization.solve(optprob2,
                                             Optim.BFGS(initial_stepnorm=0.01),
-                                            callback=callback,
+                                            #callback=callback,
                                             allow_f_increases = false)
 
 
