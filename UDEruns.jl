@@ -38,10 +38,10 @@ for (communitySize,observationError,trainingSize) in zip(communitySizes,observat
                 string(observationError)*"_trainingSize_"*string(trainingSize)*"_rep_"*string(i)*"_"*string(j)*".csv",UDENonAutonomousTest)
 
             #Residuals
-            UDEAutonomousResiduals = normalizedResiduals(NODEAutonomousTest,timeSeries[:,trainingSize:(trainingSize+50)])
+            UDEAutonomousResiduals = normalizedResiduals(UDEAutonomousTest,timeSeries[:,trainingSize:(trainingSize+50)])
             writedlm("Results/residuals_autonomous_NODE_communitySize_"*string(communitySize)*"_observationError_"*
                 string(observationError)*"_trainingSize_"*string(trainingSize)*"_rep_"*string(i)*"_"*string(j)*".csv",UDEAutonomousResiduals)
-            UDENonAutonomousResiduals = normalizedResiduals(NODEAutonomousTest,timeSeries[1:communitySize,trainingSize:(trainingSize+50)])
+            UDENonAutonomousResiduals = normalizedResiduals(UDENonAutonomousTest[1:communitySize,:],timeSeries[1:communitySize,trainingSize:(trainingSize+50)])
             writedlm("Results/residuals_autonomous_NODE_communitySize_"*string(communitySize)*"_observationError_"*
                 string(observationError)*"_trainingSize_"*string(trainingSize)*"_rep_"*string(i)*"_"*string(j)*".csv",UDENonAutonomousResiduals)
         end

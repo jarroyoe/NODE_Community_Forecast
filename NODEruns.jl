@@ -43,7 +43,7 @@ for (communitySize,observationError,trainingSize) in zip(communitySizes,observat
             NODEAutonomousResiduals = normalizedResiduals(NODEAutonomousTest,timeSeries[:,trainingSize:(trainingSize+50)])
             writedlm("Results/residuals_autonomous_NODE_communitySize_"*string(communitySize)*"_observationError_"*
                 string(observationError)*"_trainingSize_"*string(trainingSize)*"_rep_"*string(i)*"_"*string(j)*".csv",NODEAutonomousResiduals)
-            NODENonAutonomousResiduals = normalizedResiduals(NODEAutonomousTest,[timeSeries[1:communitySize,trainingSize:(trainingSize+50)])
+            NODENonAutonomousResiduals = normalizedResiduals(NODENonAutonomousTest[1:communitySize,:],timeSeries[1:communitySize,trainingSize:(trainingSize+50)])
             writedlm("Results/residuals_autonomous_NODE_communitySize_"*string(communitySize)*"_observationError_"*
                 string(observationError)*"_trainingSize_"*string(trainingSize)*"_rep_"*string(i)*"_"*string(j)*".csv",NODENonAutonomousResiduals)
 

@@ -71,7 +71,7 @@ function trainNODEModel(neuralNetwork,training_data)
                                             allow_f_increases = false)
 
 
-    return result_neuralode2.u, losses
+    return result_neuralode2.u
 end
 
 function testNODEModel(params,neuralNetwork,x0,T)
@@ -214,17 +214,17 @@ function trainUDEModel(neuralNetwork,knownDynamics,training_data;needed_ps = Flo
 
     result_neuralode = Optimization.solve(optprob,
                                            ADAM(),
-                                           callback = callback,
+                                           #callback = callback,
                                            maxiters = 300)
 
     optprob2 = remake(optprob,u0 = result_neuralode.u)
     result_neuralode2 = Optimization.solve(optprob2,
                                             Optim.BFGS(initial_stepnorm=0.01),
-                                            callback=callback,
+                                            #callback=callback,
                                             allow_f_increases = false)
 
 
-    return result_neuralode2.u, losses
+    return result_neuralode2.u
 end
 
 function testUDEModel(params,neuralNetwork,knownDynamics,x0,T;p_true = nothing)
