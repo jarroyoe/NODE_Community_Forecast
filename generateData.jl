@@ -1,3 +1,5 @@
+using DelimitedFiles
+using FLoops
 include("dataGeneration.jl")
 
 #Run conditions
@@ -8,10 +10,10 @@ numberofTimeSeries = 4
 #initialWeightsNumber = 32
 Tmax = 100
 
-for (communitySize,observationError,trainingSize) in zip(communitySizes,observationErrors,trainingSizes)
+@floop for (communitySize,observationError) in Iterators.product(communitySizes,observationErrors)
     for i in 1:numberofTimeSeries
         timeSeries = Array(log10.(generateTimeSeries(communitySize,Tmax,σobservation = observationError))')
         writedlm("Models/timeSeries_communitySize_"*string(communitySize)*"_observationError_"*
-            string(observationError)*"_trainingSize_"*string(trainingSize)*"_rep_"*string(i)*".csv",timeSeries)
+            string(observationError)*"_rep_"*string(i)*".csv",timeSeries)
     end
 end

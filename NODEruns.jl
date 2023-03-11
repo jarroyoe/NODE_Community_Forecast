@@ -11,10 +11,10 @@ Tmax = 100
 knownDynamics(x,m,q) = -q
 
 #Run NODEs
-for (communitySize,observationError,trainingSize) in zip(communitySizes,observationErrors,trainingSizes)
+for (communitySize,observationError,trainingSize) in Iterators.product(communitySizes,observationErrors,trainingSizes)
     for i in 1:numberofTimeSeries
         timeSeries = readdlm("Models/timeSeries_communitySize_"*string(communitySize)*"_observationError_"*
-        string(observationError)*"_trainingSize_"*string(trainingSize)*"_rep_"*string(i)*".csv")
+        string(observationError)*"_rep_"*string(i)*".csv")
         Threads.@threads for j in 1:initialWeightsNumber
             #Training of models
             NODEAutonomous = denseLayersLux(communitySize,[communitySize*3,communitySize*2])
