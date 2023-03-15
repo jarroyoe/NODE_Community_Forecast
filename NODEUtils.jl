@@ -260,11 +260,11 @@ end
 
 #Save functions
 
-function saveNeuralNetwork(model::NODE,fileName = "fit_neural_network")
+function saveNeuralNetwork(model::NODE;fileName = "fit_neural_network")
     serialize(fileName*".jls",model)
 end
 
-function saveNeuralNetwork(model::UDE,fileName = "fit_neural_network")
+function saveNeuralNetwork(model::UDE;fileName = "fit_neural_network")
     methodToSave = methods(model.knownDynamics)[1]
     modelToSave = UDE(model.neuralNetwork,model.parameters,methodToSave)
     serialize(fileName*".jls",modelToSave)
