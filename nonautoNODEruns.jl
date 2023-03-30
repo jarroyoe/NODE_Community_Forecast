@@ -3,9 +3,9 @@ include("NODEUtils.jl")
 include("dataGeneration.jl")
 
 #Run conditions
-communitySizes = [10,50]
+communitySizes = [10,40]
 observationErrors = [0,1e-3,1e-1]
-numberofTimeSeries = 4
+numberofTimeSeries = 2
 trainingSizes = [10, 30, 50]
 initialWeightsNumber = 4
 Tmax = 100
@@ -31,12 +31,6 @@ Tmax = 100
             writedlm("Results/test_nonautonomous_NODE_communitySize_"*string(communitySize)*"_observationError_"*
                 string(observationError)*"_trainingSize_"*string(trainingSize)*"_rep_"*string(i)*"_"*string(j)*".csv",NODENonAutonomousTest)
             
-
-            #Residuals
-            NODENonAutonomousResiduals = normalizedResiduals(NODENonAutonomousTest[1:communitySize,:],timeSeries[1:communitySize,trainingSize:(trainingSize+50)])
-            writedlm("Results/residuals_autonomous_NODE_communitySize_"*string(communitySize)*"_observationError_"*
-                string(observationError)*"_trainingSize_"*string(trainingSize)*"_rep_"*string(i)*"_"*string(j)*".csv",NODENonAutonomousResiduals)
-
         end
     end
 end
