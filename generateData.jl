@@ -3,9 +3,9 @@ using FLoops
 include("dataGeneration.jl")
 
 #Run conditions
-communitySizes = [10,20,50]
+communitySizes = [40]
 observationErrors = [0,1e-3,1e-1]
-numberofTimeSeries = 4
+numberofTimeSeries = 2
 #trainingSizes = [10, 30, 50]
 #initialWeightsNumber = 32
 Tmax = 100
