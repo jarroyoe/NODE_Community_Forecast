@@ -1,0 +1,44 @@
+---
+title: "NODE_Statistical_Analysis"
+author: "Jorge Arroyo-Esquivel"
+date: "2023-04-04"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+#Load libraries and data
+```{r,warning=FALSE}
+rm(list=ls())
+library(ggplot2)
+library(dplyr)
+library(broom)
+load("test_predictions_and_residuals.RData")
+load("null_test_predictions_and_residuals.RData")
+```
+
+#Data processing
+```{r,warning=FALSE}
+allPredictions <- testPredictions %>% full_join(ARIMAPredictions %>% mutate(ModelType = "ARIMA",ArchitectureType = "ARIMA",RepNumber = 1))
+
+RMSEs <- allPredictions %>% filter(Time<=TrainingSize+10) %>% group_by(ModelType,ArchitectureType,CommunitySize,ObservationError,TrainingSize,TimeSeriesID,RepNumber) %>% summarise(RMSE = sqrt(sum(Residuals^2)),NRMSE = RMSE/(max(RealValue)-min(RealValue)))
+
+finalCommunitySizes <- allPredictions %>% group_by(ModelType,ArchitectureType,CommunitySize,ObservationError,TrainingSize,TimeSeriesID,RepNumber,PopID) %>% summarise(PredictedatEnd = last(LogDensity)>0,atEnd = last(RealValue)>0) %>% group_by(ModelType,ArchitectureType,CommunitySize,ObservationError,TrainingSize,TimeSeriesID,RepNumber) %>% summarise(NumberPredictedAtEnd = sum(PredictedatEnd), NumberAtEnd = sum(atEnd), Deviation = (NumberAtEnd-NumberPredictedAtEnd)/NumberAtEnd)
+```
+#ANOVA for RMSE
+```{r}
+RMSEs %>% lm(RMSE~ModelType+ArchitectureType+CommunitySize+ObservationError+TrainingSize, data = .) %>% 
+  aov() %>% tidy() %>% mutate(contribution = sumsq/sum(sumsq)) %>% filter(term != "Residuals") %>% ggplot(aes(reorder(term,contribution),contribution* 100,fill=term)) +
+  geom_bar(stat='identity') + xlab("Variable") + ylab("Contribution to variation (%)") + theme_bw() +labs(fill = "Term") + theme(text=element_text(size=20))
+```
+
+#ANOVA for final community size
+```{r}
+finalCommunitySizes %>% lm(Deviation~ModelType+ArchitectureType+CommunitySize+ObservationError+TrainingSize, data = .) %>% 
+  aov() %>% tidy() %>% mutate(contribution = sumsq/sum(sumsq)) %>% filter(term != "Residuals") %>% ggplot(aes(reorder(term,contribution),contribution* 100,fill=term)) +
+  geom_bar(stat='identity') + xlab("Variable") + ylab("Contribution to variation (%)") + theme_bw() + ylim(0,11)+labs(fill = "Term") + theme(text=element_text(size=20))
+```
+

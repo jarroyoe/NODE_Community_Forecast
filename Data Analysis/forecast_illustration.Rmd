@@ -1,0 +1,110 @@
+---
+title: "forecast_illustration"
+author: "Jorge Arroyo-Esquivel"
+date: "2023-04-05"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Load libraries and data
+```{r,warning=FALSE}
+rm(list=ls())
+library(ggplot2)
+library(dplyr)
+library(ggpubr)
+library(broom)
+library(scales)
+load("test_predictions_and_residuals.RData")
+load("null_test_predictions_and_residuals.RData")
+
+```
+
+#Choose a time series and process it
+```{r}
+allPredictions <- testPredictions %>% full_join(ARIMAPredictions %>% mutate(ModelType = "ARIMA",ArchitectureType = "ARIMA",RepNumber = 1))
+
+selectedCommunitySize = 10
+selectedObservationError = 0
+selectedTimeSeriesID = 1
+
+selectedTimeSeries <- allPredictions %>% filter(CommunitySize == selectedCommunitySize, ObservationError == selectedObservationError,TimeSeriesID == selectedTimeSeriesID) %>% group_by(ModelType,ArchitectureType,TrainingSize,Time,PopID) %>% summarise(RealValue = RealValue,MeanPrediction = mean(LogDensity),SEPrediction = sd(LogDensity)/sqrt(n())) %>% mutate(Lower95 = MeanPrediction - 1.96*SEPrediction, Higher95 = MeanPrediction + 1.96*SEPrediction) %>% select(-SEPrediction) %>% arrange(TrainingSize,PopID,Time)
+
+selectedARIMA <- ARIMAPredictionsSD %>% mutate(ModelType = "ARIMA",ArchitectureType = "ARIMA") %>%  group_by(ModelType,ArchitectureType,TrainingSize,Time,PopID) %>% filter(CommunitySize == selectedCommunitySize, ObservationError == selectedObservationError,TimeSeriesID == selectedTimeSeriesID) %>% select(-CommunitySize,-ObservationError,-TimeSeriesID) %>% arrange(TrainingSize,PopID,Time)
+
+selectedTimeSeries[selectedTimeSeries$ModelType == "ARIMA",8] = selectedARIMA$Lower95
+selectedTimeSeries[selectedTimeSeries$ModelType == "ARIMA",9] = selectedARIMA$Higher95
+
+selectedTimeSeries <- selectedTimeSeries %>% filter(Time<=TrainingSize+20,Time!=TrainingSize)
+```
+
+#Make time series plot for each different model with 30 training size
+```{r}
+chosenTrainingSize = 30
+realTimeSeries <- read.csv(paste(sep="",paste(sep="_","../Data/timeSeries_communitySize",selectedCommunitySize,"observationError","0.0","rep",selectedTimeSeriesID),".csv"),header=FALSE,sep='\t')[,1:(chosenTrainingSize+20)]
+
+realTimeSeries <- data.frame(Time = rep(1:(chosenTrainingSize+20),selectedCommunitySize),PopID = rep(1:selectedCommunitySize,each = 50),RealValue = as.vector(t(realTimeSeries)))
+
+samplePopulations <- c(2,3,6,9)
+realTimeSeries <- realTimeSeries %>% filter(PopID %in%(samplePopulations)) %>% mutate(RealValue = RealValue)
+realTimeSeries$PopID <- as.factor(realTimeSeries$PopID)
+selectedTimeSeries <- selectedTimeSeries %>% filter(PopID %in%(samplePopulations)) %>%  mutate(Higher95 = Higher95, Lower95 = Lower95,MeanPrediction = MeanPrediction)
+selectedTimeSeries$PopID <- as.factor(selectedTimeSeries$PopID)
+```
+
+```{r}
+p1 <- ggplot(realTimeSeries,aes(Time,RealValue),fill=(PopID))+geom_point(aes(colour=(PopID)))+ geom_line(data=selectedTimeSeries %>% filter(ModelType == "ARIMA",TrainingSize == chosenTrainingSize),aes(Time,MeanPrediction,color=(PopID))) + geom_ribbon(data = selectedTimeSeries %>% filter(ModelType == "ARIMA",TrainingSize == chosenTrainingSize),aes(ymin = Lower95, ymax = Higher95,fill = (PopID)),alpha = 0.2) + ggtitle("ARIMA") + ylab("Population Density") +theme_bw()+ theme(text = element_text(size=14))
+
+p2 <- ggplot(realTimeSeries,aes(Time,RealValue,fill=(PopID)))+geom_point(aes(colour=(PopID)))+ geom_line(data=selectedTimeSeries %>% filter(ModelType == "Time Aware",ArchitectureType == "NODE",TrainingSize == chosenTrainingSize),aes(Time,MeanPrediction,color=(PopID))) + geom_ribbon(data = selectedTimeSeries %>% filter(ModelType == "Time Aware",ArchitectureType == "NODE",TrainingSize == chosenTrainingSize),aes(ymin = Lower95, ymax = Higher95,group = (PopID)),alpha = 0.2) + ggtitle("Time Aware NODE") + ylab("Population Density")+ theme_bw()+theme(text = element_text(size=14))
+
+p3 <- ggplot(realTimeSeries,aes(Time,RealValue,fill=(PopID)))+geom_point(aes(colour=(PopID)))+ geom_line(data=selectedTimeSeries %>% filter(ModelType == "Time Agnostic",ArchitectureType == "NODE",TrainingSize == chosenTrainingSize),aes(Time,MeanPrediction,color=(PopID))) + geom_ribbon(data = selectedTimeSeries %>% filter(ModelType == "Time Agnostic",ArchitectureType == "NODE",TrainingSize == chosenTrainingSize),aes(ymin = Lower95, ymax = Higher95,group = (PopID)),alpha = 0.2) + ggtitle("Time Agnostic NODE") + ylab("Population Density")+ theme_bw()+theme(text = element_text(size=14))
+
+p4 <- ggplot(realTimeSeries,aes(Time,RealValue,fill=(PopID)))+geom_point(aes(colour=(PopID)))+ geom_line(data=selectedTimeSeries %>% filter(ModelType == "Time Aware",ArchitectureType == "UDE",TrainingSize == chosenTrainingSize),aes(Time,MeanPrediction,color=(PopID))) + geom_ribbon(data = selectedTimeSeries %>% filter(ModelType == "Time Aware",ArchitectureType == "UDE",TrainingSize == chosenTrainingSize),aes(ymin = Lower95, ymax = Higher95,group = (PopID)),alpha = 0.2) + ggtitle("Time Aware UDE") + ylab("Population Density")+theme_bw()+ theme(text = element_text(size=14))
+
+p5 <- ggplot(realTimeSeries,aes(Time,RealValue,fill=(PopID)))+geom_point(aes(colour=(PopID)))+ geom_line(data=selectedTimeSeries %>% filter(ModelType == "Time Agnostic",ArchitectureType == "UDE",TrainingSize == chosenTrainingSize),aes(Time,MeanPrediction,color=(PopID))) + geom_ribbon(data = selectedTimeSeries %>% filter(ModelType == "Time Agnostic",ArchitectureType == "UDE",TrainingSize == chosenTrainingSize),aes(ymin = Lower95, ymax = Higher95,group = (PopID)),alpha = 0.2) + ggtitle("Time Agnostic UDE") + theme_bw() + ylab("Population Density")+ theme(text = element_text(size=14))
+
+ggarrange(p1,p2,p3,p4,p5,common.legend = TRUE,legend='none')
+```   
+
+#Uncertainty spread seems to be terrible on ARIMA
+#Let's analyze that statistically
+```{r}
+timeSeriesSpread <- allPredictions %>% filter(Time<=TrainingSize+20) %>% group_by(CommunitySize,ObservationError,ModelType,ArchitectureType,TrainingSize,Time,PopID) %>% summarise(RealValue = RealValue,MeanPrediction = mean(LogDensity),SEPrediction = sd(LogDensity)/sqrt(n())) %>% mutate(Lower95 = MeanPrediction - 1.96*SEPrediction, Higher95 = MeanPrediction + 1.96*SEPrediction) %>% select(-SEPrediction) %>% arrange(TrainingSize,PopID,Time)
+
+selectedARIMA <- ARIMAPredictionsSD %>% mutate(ModelType = "ARIMA",ArchitectureType = "ARIMA") %>% filter(Time<=TrainingSize+20) %>%  group_by(CommunitySize,ObservationError,ModelType,ArchitectureType,TrainingSize,Time,PopID) %>% select(-CommunitySize,-ObservationError,-TimeSeriesID) %>% arrange(TrainingSize,PopID,Time)
+
+timeSeriesSpread[timeSeriesSpread$ModelType == "ARIMA",10] = selectedARIMA$Lower95
+timeSeriesSpread[timeSeriesSpread$ModelType == "ARIMA",11] = selectedARIMA$Higher95
+
+timeSeriesSpread <- timeSeriesSpread %>% mutate(Spread = Higher95-Lower95) %>% mutate(CV = abs(Spread/MeanPrediction))
+
+timeSeriesSpread %>% lm(Spread~ModelType+ArchitectureType+TrainingSize+CommunitySize+ObservationError, data = .) %>% 
+  aov() %>% tidy() %>% mutate(contribution = sumsq/sum(sumsq)) %>% filter(term != "Residuals") %>% ggplot(aes(reorder(term,contribution),contribution* 100,fill=term)) +
+  geom_bar(stat='identity') + xlab("Variable") + ylab("Contribution to variation (%)") + theme_bw() + ylim(0,11) + labs(fill = "Term") + theme(text=element_text(size=20))
+```
+```{r}
+timeSeriesSpread %>% ggplot(aes(ModelType,Spread,fill = ModelType))+geom_violin() + theme_bw() + xlab("Model Type") + ylab("Size of Confidence Intervals") +    scale_y_continuous(trans='log10',
+                     breaks=trans_breaks('log10', function(x) 10^x),
+                     labels=trans_format('log10', math_format(10^.x))) + theme(legend.position="none",text=element_text(size=24))+stat_summary(
+    geom = "point",
+    fun = "mean",
+    col = "black",
+    size = 5,
+    shape = 24,
+    fill = "red"
+  )
+
+timeSeriesSpread %>% ggplot(aes(ArchitectureType,Spread,fill = ArchitectureType))+geom_violin() + theme_bw() + xlab("Architecture Type") + ylab("Size of Confidence Intervals") +    scale_y_continuous(trans='log10',
+                     breaks=trans_breaks('log10', function(x) 10^x),
+                     labels=trans_format('log10', math_format(10^.x))) + theme(legend.position="none",text=element_text(size=24))+stat_summary(
+    geom = "point",
+    fun = "mean",
+    col = "black",
+    size = 5,
+    shape = 24,
+    fill = "red"
+  )
+```
+
