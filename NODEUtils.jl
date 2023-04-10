@@ -232,7 +232,7 @@ function testUDEModel(params,neuralNetwork,knownDynamics,x0,T;p_true = nothing)
     
     function ude!(du,u,p,t,q)
         knownPred = knownDynamics(u,nothing,q)
-        nnPred = neuralNetwork(u,params,st)
+        nnPred = Array(neuralNetwork(u,p,st)[1])
 
         for i in 1:length(u)
             du[i] = knownPred[i]+nnPred[i]
@@ -241,7 +241,7 @@ function testUDEModel(params,neuralNetwork,knownDynamics,x0,T;p_true = nothing)
     # Closure with the known parameter
     nn_dynamics!(du,u,p,t) = ude!(du,u,p,t,p_true)
     # Define the problem
-    prob_nn = ODEProblem(nn_dynamics!,x0, (Float32(1),Float32(T)), params)
+    prob_nn = ODEProblem(nn_dynamics!,x0, (Float32(0),Float32(T)), params)
     prediction = Array(solve(prob_nn, Tsit5(), saveat = 1,
                 abstol=1e-6, reltol=1e-6
                 ))

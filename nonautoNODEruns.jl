@@ -3,9 +3,9 @@ include("NODEUtils.jl")
 include("dataGeneration.jl")
 
 #Run conditions
-communitySizes = [10,50]
+communitySizes = [10,40]
 observationErrors = [0,1e-3,1e-1]
-numberofTimeSeries = 4
+numberofTimeSeries = 2
 trainingSizes = [10, 30, 50]
 initialWeightsNumber = 4
 Tmax = 100
@@ -18,7 +18,7 @@ Tmax = 100
         for j in 1:initialWeightsNumber
 	    #Check to prevent double work
 	    isfile("Models/nonautonomous_NODE_communitySize_"*string(communitySize)*"_observationError_"*
-                    string(observationError)*"_trainingSize_"*string(trainingSize)*"_rep_"*string(i)*"_"*string(j)) && continue
+                    string(observationError)*"_trainingSize_"*string(trainingSize)*"_rep_"*string(i)*"_"*string(j)*".jls") && continue
             #Training of models
             NODENonAutonomous = denseLayersLux(communitySize+1,[communitySize*3,communitySize*2])
             trainedParamsNODENonAutonomous = trainNODEModel(NODENonAutonomous,[timeSeries[:,1:trainingSize];collect(1:trainingSize)'])
