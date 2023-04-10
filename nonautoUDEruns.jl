@@ -19,7 +19,7 @@ Tmax = 100
         for j in 1:initialWeightsNumber
 	    #Check to prevent double work
 	    isfile("Models/nonautonomous_UDE_communitySize_"*string(communitySize)*"_observationError_"*
-                    string(observationError)*"_trainingSize_"*string(trainingSize)*"_rep_"*string(i)*"_"*string(j)) && continue
+                    string(observationError)*"_trainingSize_"*string(trainingSize)*"_rep_"*string(i)*"_"*string(j)*".jls") && continue
 
             #Training of models
             UDENonAutonomous = denseLayersLux(communitySize+1,[communitySize*3,communitySize*2])
@@ -32,11 +32,6 @@ Tmax = 100
             UDENonAutonomousTest = testUDEModel(trainedParamsUDENonAutonomous,UDENonAutonomous,knownDynamics,[timeSeries[:,(trainingSize)];trainingSize],50,p_true=1)
             writedlm("Results/test_nonautonomous_UDE_communitySize_"*string(communitySize)*"_observationError_"*
                 string(observationError)*"_trainingSize_"*string(trainingSize)*"_rep_"*string(i)*"_"*string(j)*".csv",UDENonAutonomousTest)
-
-            #Residuals
-            UDENonAutonomousResiduals = normalizedResiduals(UDENonAutonomousTest[1:communitySize,:],timeSeries[1:communitySize,trainingSize:(trainingSize+50)])
-            writedlm("Results/residuals_autonomous_NODE_communitySize_"*string(communitySize)*"_observationError_"*
-                string(observationError)*"_trainingSize_"*string(trainingSize)*"_rep_"*string(i)*"_"*string(j)*".csv",UDENonAutonomousResiduals)
         end
     end
 end

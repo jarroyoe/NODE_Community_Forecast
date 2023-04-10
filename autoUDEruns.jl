@@ -3,9 +3,9 @@ include("NODEUtils.jl")
 include("dataGeneration.jl")
 
 #Run conditions
-communitySizes = [10,50]
+communitySizes = [10,40]
 observationErrors = [0,1e-3,1e-1]
-numberofTimeSeries = 4
+numberofTimeSeries = 2
 trainingSizes = [10, 30, 50]
 initialWeightsNumber = 4
 Tmax = 100
@@ -18,6 +18,9 @@ Tmax = 100
         string(observationError)*"_rep_"*string(i)*".csv"))
         for j in 1:initialWeightsNumber
             #Training of models
+	    isfile("Models/autonomous_UDE_communitySize_"*string(communitySize)*"_observationError_"*
+                    string(observationError)*"_trainingSize_"*string(trainingSize)*"_rep_"*string(i)*"_"*string(j)*".jls") && continue
+
             UDEAutonomous = denseLayersLux(communitySize,[communitySize*3,communitySize*2])
             trainedParamsUDEAutonomous = trainUDEModel(UDEAutonomous,knownDynamics,timeSeries[:,1:trainingSize],p_true=1)
             saveNeuralNetwork(UDE(UDEAutonomous,trainedParamsUDEAutonomous,knownDynamics),
@@ -28,11 +31,6 @@ Tmax = 100
             UDEAutonomousTest = testUDEModel(trainedParamsUDEAutonomous,UDEAutonomous,knownDynamics,timeSeries[:,(trainingSize)],50,p_true=1)
             writedlm("Results/test_autonomous_UDE_communitySize_"*string(communitySize)*"_observationError_"*
                 string(observationError)*"_trainingSize_"*string(trainingSize)*"_rep_"*string(i)*"_"*string(j)*".csv",UDEAutonomousTest)
-
-            #Residuals
-            UDEAutonomousResiduals = normalizedResiduals(UDEAutonomousTest,timeSeries[:,trainingSize:(trainingSize+50)])
-            writedlm("Results/residuals_autonomous_NODE_communitySize_"*string(communitySize)*"_observationError_"*
-                string(observationError)*"_trainingSize_"*string(trainingSize)*"_rep_"*string(i)*"_"*string(j)*".csv",UDEAutonomousResiduals)
         end
     end
 end

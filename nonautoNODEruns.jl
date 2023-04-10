@@ -31,12 +31,6 @@ Tmax = 100
             writedlm("Results/test_nonautonomous_NODE_communitySize_"*string(communitySize)*"_observationError_"*
                 string(observationError)*"_trainingSize_"*string(trainingSize)*"_rep_"*string(i)*"_"*string(j)*".csv",NODENonAutonomousTest)
             
-
-            #Residuals
-            NODENonAutonomousResiduals = normalizedResiduals(NODENonAutonomousTest[1:communitySize,:],timeSeries[1:communitySize,trainingSize:(trainingSize+50)])
-            writedlm("Results/residuals_autonomous_NODE_communitySize_"*string(communitySize)*"_observationError_"*
-                string(observationError)*"_trainingSize_"*string(trainingSize)*"_rep_"*string(i)*"_"*string(j)*".csv",NODENonAutonomousResiduals)
-
         end
     end
 end
