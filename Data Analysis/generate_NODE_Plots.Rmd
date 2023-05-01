@@ -15,6 +15,7 @@ knitr::opts_chunk$set(echo = TRUE)
 rm(list=ls())
 library(ggplot2)
 library(dplyr)
+library(scales)
 load("test_predictions_and_residuals.RData")
 load("null_test_predictions_and_residuals.RData")
 ```
@@ -25,7 +26,7 @@ allPredictions <- testPredictions %>% full_join(ARIMAPredictions %>% mutate(Mode
 
 RMSEs <- allPredictions %>% group_by(ModelType,ArchitectureType,CommunitySize,ObservationError,TrainingSize,TimeSeriesID,RepNumber) %>% summarise(RMSE = sqrt(sum(Residuals^2)),NRMSE = RMSE/(max(RealValue)-min(RealValue)))
 
-finalCommunitySizes <- allPredictions %>% group_by(ModelType,ArchitectureType,CommunitySize,ObservationError,TrainingSize,TimeSeriesID,RepNumber,PopID) %>% summarise(PredictedatEnd = last(LogDensity)>0,atEnd = last(RealValue)>0) %>% group_by(ModelType,ArchitectureType,CommunitySize,ObservationError,TrainingSize,TimeSeriesID,RepNumber) %>% summarise(NumberPredictedAtEnd = sum(PredictedatEnd), NumberAtEnd = sum(atEnd), Deviation = (NumberAtEnd-NumberPredictedAtEnd)/NumberAtEnd)
+finalCommunitySizes <- allPredictions %>% group_by(ModelType,ArchitectureType,CommunitySize,ObservationError,TrainingSize,TimeSeriesID,PopID) %>% summarise(MeanLogDensity = mean(LogDensity),RealValue = mean(RealValue)) %>%  group_by(ModelType,ArchitectureType,CommunitySize,ObservationError,TrainingSize,TimeSeriesID,PopID) %>% summarise(PredictedatEnd = last(MeanLogDensity)>0,atEnd = last(RealValue)>0) %>% group_by(ModelType,ArchitectureType,CommunitySize,ObservationError,TrainingSize,TimeSeriesID) %>% summarise(NumberPredictedAtEnd = sum(PredictedatEnd), NumberAtEnd = sum(atEnd), Factor = NumberPredictedAtEnd/NumberAtEnd)
 ```
 
 
@@ -235,14 +236,14 @@ RMSEs_onlydetectable %>% ggplot(aes(as.factor(CommunitySize),log10(NRMSE))) + ge
 #Violin plots of deviations of community size
 ```{r}
 #By time awareness
-finalCommunitySizes %>% ggplot(aes(as.factor(ModelType),Deviation*100,fill=as.factor(ModelType))) + geom_violin() + theme_bw() + xlab("Model Type") + ylab("Deviation from Final Community Size (%)") + theme(legend.position="none",text=element_text(size=22))+stat_summary(
+finalCommunitySizes %>% ggplot(aes(as.factor(ModelType),Factor,fill=as.factor(ModelType))) + geom_violin() + theme_bw() + xlab("Model Type") + ylab("Deviation from Final Community Size (%)") + theme(legend.position="none",text=element_text(size=22))+stat_summary(
     geom = "point",
     fun = "mean",
     col = "black",
     size = 5,
     shape = 24,
     fill = "red"
-  ) + geom_hline(yintercept = 0,linetype="longdash")
+  ) + geom_hline(yintercept = 1,linetype="longdash")
 
 #By architecture
 finalCommunitySizes %>% ggplot(aes(as.factor(ArchitectureType),Deviation*100,fill=as.factor(ArchitectureType))) + geom_violin() + theme_bw() + xlab("Architecture Type") + ylab("Deviation from Final Community Size (%)") + theme(legend.position="none",text=element_text(size=22))+stat_summary(
@@ -294,3 +295,15 @@ finalCommunitySizes %>% ggplot(aes(as.factor(CommunitySize),Deviation)) + geom_v
     fill = "red"
   )
 ```
+
+```{r}
+p1 <- finalCommunitySizes %>% ggplot(aes(Factor*100,color = as.factor(ArchitectureType))) + geom_density(linewidth=2) + geom_vline(xintercept = 0,linetype = 'longdash') + theme_bw() + geom_vline(data=(finalCommunitySizes %>% group_by(ArchitectureType) %>% summarise(xvalue = median(Deviation*100))), aes(xintercept=xvalue, colour=ArchitectureType),linewidth=1.5,linetype='dashed')  + xlab("Deviation from Final Community Size (%)") + ylab("Frequency") + labs(color = "Architecture Type")+theme(text=element_text(size=22))
+
+p2 <- finalCommunitySizes %>% ggplot(aes(Factor*100,color = as.factor(ModelType))) + geom_density(linewidth=2) + geom_vline(xintercept = 0,linetype = 'longdash') + theme_bw() + geom_vline(data=(finalCommunitySizes %>% group_by(ModelType) %>% summarise(xvalue = median(Deviation*100))), aes(xintercept=xvalue, colour=ModelType),linewidth=1.5,linetype='dashed')  + xlab("Deviation from Final Community Size (%)") + ylab("Frequency") + labs(color = "Model Type")+theme(text=element_text(size=22))
+```
+
+```{r}
+finalCommunitySizes %>% filter(NumberPredictedAtEnd>0) %>%  ggplot(aes(NumberAtEnd,NumberPredictedAtEnd,color=ArchitectureType,shape=ArchitectureType))+geom_point(size=4,position = position_dodge(width=0.9))+geom_abline(slope=1,intercept=0)+theme_bw()+xlab("Real Final Community Size")+ ylab("Predicted Final Community Size") + labs(color = "Architecture Type",shape="Architecture Type")+theme(text=element_text(size=22))
+finalCommunitySizes %>% filter(NumberPredictedAtEnd>0) %>%  ggplot(aes(NumberAtEnd,NumberPredictedAtEnd,color=ModelType,shape=ModelType))+geom_point(size=4,position = position_dodge(width=0.9))+geom_abline(slope=1,intercept=0)+theme_bw()+xlab("Real Final Community Size")+ ylab("Predicted Final Community Size") + labs(color = "Model Type",shape="Model Type")+theme(text=element_text(size=22))
+```
+
