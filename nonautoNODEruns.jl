@@ -20,7 +20,7 @@ Tmax = 100
 	    isfile("Models/nonautonomous_NODE_communitySize_"*string(communitySize)*"_observationError_"*
                     string(observationError)*"_trainingSize_"*string(trainingSize)*"_rep_"*string(i)*"_"*string(j)*".jls") && continue
             #Training of models
-            NODENonAutonomous = denseLayersLux(communitySize,communitySize*2)
+            NODENonAutonomous = denseLayersLux(communitySize+1,[communitySize*3,communitySize*2])
             trainedParamsNODENonAutonomous = trainNODEModel(NODENonAutonomous,[timeSeries[:,1:trainingSize];collect(1:trainingSize)'])
             saveNeuralNetwork(NODE(NODENonAutonomous,trainedParamsNODENonAutonomous),
                 fileName="Models/nonautonomous_NODE_communitySize_"*string(communitySize)*"_observationError_"*
