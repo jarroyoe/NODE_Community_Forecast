@@ -21,7 +21,7 @@ Tmax = 100
                     string(observationError)*"_trainingSize_"*string(trainingSize)*"_rep_"*string(i)*"_"*string(j)*".jls") && continue
 
             #Training of models
-            NODEAutonomous = denseLayersLux(communitySize,[communitySize*3,communitySize*2])
+            NODEAutonomous = denseLayersLux(communitySize,communitySize*2)
             trainedParamsNODEAutonomous = trainNODEModel(NODEAutonomous,timeSeries[:,1:trainingSize])
             saveNeuralNetwork(NODE(NODEAutonomous,trainedParamsNODEAutonomous),
                 fileName="Models/autonomous_NODE_communitySize_"*string(communitySize)*"_observationError_"*
