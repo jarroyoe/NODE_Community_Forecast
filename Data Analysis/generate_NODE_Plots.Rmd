@@ -1,0 +1,309 @@
+---
+title: "generateNODEPlots"
+author: "Jorge Arroyo-Esquivel"
+date: "2023-03-28"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+#Load libraries and data
+```{r,warning=FALSE}
+rm(list=ls())
+library(ggplot2)
+library(dplyr)
+library(scales)
+load("test_predictions_and_residuals.RData")
+load("null_test_predictions_and_residuals.RData")
+```
+
+#Data processing
+```{r,warning=FALSE}
+allPredictions <- testPredictions %>% full_join(ARIMAPredictions %>% mutate(ModelType = "ARIMA",ArchitectureType = "ARIMA",RepNumber = 1))
+
+RMSEs <- allPredictions %>% group_by(ModelType,ArchitectureType,CommunitySize,ObservationError,TrainingSize,TimeSeriesID,RepNumber) %>% summarise(RMSE = sqrt(sum(Residuals^2)),NRMSE = RMSE/(max(RealValue)-min(RealValue)))
+
+finalCommunitySizes <- allPredictions %>% group_by(ModelType,ArchitectureType,CommunitySize,ObservationError,TrainingSize,TimeSeriesID,PopID) %>% summarise(MeanLogDensity = mean(LogDensity),RealValue = mean(RealValue)) %>%  group_by(ModelType,ArchitectureType,CommunitySize,ObservationError,TrainingSize,TimeSeriesID,PopID) %>% summarise(PredictedatEnd = last(MeanLogDensity)>0,atEnd = last(RealValue)>0) %>% group_by(ModelType,ArchitectureType,CommunitySize,ObservationError,TrainingSize,TimeSeriesID) %>% summarise(NumberPredictedAtEnd = sum(PredictedatEnd), NumberAtEnd = sum(atEnd), Factor = NumberPredictedAtEnd/NumberAtEnd)
+```
+
+
+#Violin Plots of RMSEs
+```{r}
+#By time awareness
+RMSEs %>% ggplot(aes(as.factor(ModelType),log10(NRMSE))) + geom_violin() + geom_point()+stat_summary(
+    geom = "point",
+    fun = "mean",
+    col = "black",
+    size = 3,
+    shape = 24,
+    fill = "red"
+  )
+
+#By architecture
+RMSEs %>% ggplot(aes(as.factor(ArchitectureType),log10(NRMSE))) + geom_violin() + geom_point()+stat_summary(
+    geom = "point",
+    fun = "mean",
+    col = "black",
+    size = 3,
+    shape = 24,
+    fill = "red"
+  )
+
+#By architecture+time awareness
+RMSEs %>% mutate(ModelArchitecture = paste(sep="+",ModelType,ArchitectureType)) %>%  ggplot(aes(as.factor(ModelArchitecture),log10(NRMSE))) + geom_violin() + geom_point()+stat_summary(
+    geom = "point",
+    fun = "mean",
+    col = "black",
+    size = 3,
+    shape = 24,
+    fill = "red"
+  )
+
+#By training size
+RMSEs %>% ggplot(aes(as.factor(TrainingSize),log10(NRMSE))) + geom_violin() + geom_point()+stat_summary(
+    geom = "point",
+    fun = "mean",
+    col = "black",
+    size = 3,
+    shape = 24,
+    fill = "red"
+  )
+
+#By noise
+RMSEs %>% ggplot(aes(as.factor(ObservationError),log10(NRMSE))) + geom_violin() + geom_point()+stat_summary(
+    geom = "point",
+    fun = "mean",
+    col = "black",
+    size = 3,
+    shape = 24,
+    fill = "red"
+  )
+
+#By community size
+RMSEs %>% ggplot(aes(as.factor(CommunitySize),log10(NRMSE))) + geom_violin() + geom_point()+ stat_summary(
+    geom = "point",
+    fun = "mean",
+    col = "black",
+    size = 3,
+    shape = 24,
+    fill = "red"
+  )
+```
+
+#Let's look at a smaller prediction time frame
+```{r}
+RMSEs_smallerWindow <- allPredictions %>% filter(Time<=TrainingSize+10) %>% group_by(ModelType,ArchitectureType,CommunitySize,ObservationError,TrainingSize,TimeSeriesID,RepNumber) %>% summarise(RMSE = sqrt(sum(Residuals^2)),NRMSE = RMSE/(max(RealValue)-min(RealValue)))
+```
+```{r}
+#By time awareness
+RMSEs_smallerWindow %>%  ggplot(aes(as.factor(ModelType),(NRMSE),fill=as.factor(ModelType))) + geom_violin() + theme_bw() + xlab("Model Type") + ylab("Normalized RMSE") +    scale_y_continuous(trans='log10',
+                     breaks=trans_breaks('log10', function(x) 10^x),
+                     labels=trans_format('log10', math_format(10^.x))) + theme(legend.position="none",text=element_text(size=22))+stat_summary(
+    geom = "point",
+    fun = "mean",
+    col = "black",
+    size = 5,
+    shape = 24,
+    fill = "red"
+  )
+
+#By architecture
+RMSEs_smallerWindow %>% ggplot(aes(as.factor(ArchitectureType),(NRMSE),fill = as.factor(ArchitectureType))) + geom_violin() + theme_bw() + xlab("Architecture Type") + ylab("Normalized RMSE") +    scale_y_continuous(trans='log10',
+                     breaks=trans_breaks('log10', function(x) 10^x),
+                     labels=trans_format('log10', math_format(10^.x))) + theme(legend.position="none",text=element_text(size=22))+stat_summary(
+    geom = "point",
+    fun = "mean",
+    col = "black",
+    size = 5,
+    shape = 24,
+    fill = "red"
+  )
+
+#By architecture+time awareness
+RMSEs_smallerWindow %>% mutate(ModelArchitecture = paste(sep="+",ModelType,ArchitectureType)) %>%  ggplot(aes(as.factor(ModelArchitecture),(NRMSE))) + geom_violin() + geom_point()+stat_summary(
+    geom = "point",
+    fun = "mean",
+    col = "black",
+    size = 3,
+    shape = 24,
+    fill = "red"
+  )
+
+#By training size
+RMSEs_smallerWindow %>% ggplot(aes(as.factor(TrainingSize),(NRMSE),fill=as.factor(TrainingSize))) + geom_violin() + theme_bw() + xlab("Training Size") + ylab("Normalized RMSE") +    scale_y_continuous(trans='log10',
+                     breaks=trans_breaks('log10', function(x) 10^x),
+                     labels=trans_format('log10', math_format(10^.x))) + theme(legend.position="none",text=element_text(size=22))+stat_summary(
+    geom = "point",
+    fun = "mean",
+    col = "black",
+    size = 5,
+    shape = 24,
+    fill = "red"
+  )
+
+#By noise
+RMSEs_smallerWindow %>% ggplot(aes(as.factor(ObservationError),(NRMSE),fill = as.factor(ObservationError))) + geom_violin() + theme_bw() + xlab("Observation Error") + ylab("Normalized RMSE") +    scale_y_continuous(trans='log10',
+                     breaks=trans_breaks('log10', function(x) 10^x),
+                     labels=trans_format('log10', math_format(10^.x))) + theme(legend.position="none",text=element_text(size=22))+stat_summary(
+    geom = "point",
+    fun = "mean",
+    col = "black",
+    size = 5,
+    shape = 24,
+    fill = "red"
+  )
+
+#By community size
+RMSEs_smallerWindow %>% ggplot(aes(as.factor(CommunitySize),(NRMSE))) + geom_violin() + geom_point()+ stat_summary(
+    geom = "point",
+    fun = "mean",
+    col = "black",
+    size = 5,
+    shape = 24,
+    fill = "red"
+  )
+```
+
+#Let's look at only populations with detectable density
+```{r}
+RMSEs_onlydetectable <- allPredictions %>% right_join(allPredictions %>% group_by(ModelType,ArchitectureType,CommunitySize,ObservationError,TrainingSize,TimeSeriesID,RepNumber,PopID) %>% summarise(atEnd = last(RealValue)>0) %>% filter(atEnd)) %>% group_by(ModelType,ArchitectureType,CommunitySize,ObservationError,TrainingSize,TimeSeriesID,RepNumber) %>% summarise(RMSE = sqrt(sum(Residuals^2)),RAE = RMSE/sqrt(sum(mean(RealValue)-LogDensity)^2)) %>% mutate(NRMSE = RMSE/CommunitySize)
+```
+```{r}
+#By time awareness
+RMSEs_onlydetectable %>% ggplot(aes(as.factor(ModelType),log10(NRMSE))) + geom_violin() + geom_point()+stat_summary(
+    geom = "point",
+    fun = "mean",
+    col = "black",
+    size = 3,
+    shape = 24,
+    fill = "red"
+  )
+
+#By architecture
+RMSEs_onlydetectable %>% ggplot(aes(as.factor(ArchitectureType),log10(NRMSE))) + geom_violin() + geom_point()+stat_summary(
+    geom = "point",
+    fun = "mean",
+    col = "black",
+    size = 3,
+    shape = 24,
+    fill = "red"
+  )
+
+#By architecture+time awareness
+RMSEs_onlydetectable %>% mutate(ModelArchitecture = paste(sep="+",ModelType,ArchitectureType)) %>%  ggplot(aes(as.factor(ModelArchitecture),log10(NRMSE))) + geom_violin() + geom_point()+stat_summary(
+    geom = "point",
+    fun = "mean",
+    col = "black",
+    size = 3,
+    shape = 24,
+    fill = "red"
+  )
+
+#By training size
+RMSEs_onlydetectable %>% ggplot(aes(as.factor(TrainingSize),log10(NRMSE))) + geom_violin() + geom_point()+stat_summary(
+    geom = "point",
+    fun = "mean",
+    col = "black",
+    size = 3,
+    shape = 24,
+    fill = "red"
+  )
+
+#By noise
+RMSEs_onlydetectable %>% ggplot(aes(as.factor(ObservationError),log10(NRMSE))) + geom_violin() + geom_point()+stat_summary(
+    geom = "point",
+    fun = "mean",
+    col = "black",
+    size = 3,
+    shape = 24,
+    fill = "red"
+  )
+
+#By community size
+RMSEs_onlydetectable %>% ggplot(aes(as.factor(CommunitySize),log10(NRMSE))) + geom_violin() + geom_point()+ stat_summary(
+    geom = "point",
+    fun = "mean",
+    col = "black",
+    size = 3,
+    shape = 24,
+    fill = "red"
+  )
+```
+
+#Violin plots of deviations of community size
+```{r}
+#By time awareness
+finalCommunitySizes %>% ggplot(aes(as.factor(ModelType),Factor,fill=as.factor(ModelType))) + geom_violin() + theme_bw() + xlab("Model Type") + ylab("Deviation from Final Community Size (%)") + theme(legend.position="none",text=element_text(size=22))+stat_summary(
+    geom = "point",
+    fun = "mean",
+    col = "black",
+    size = 5,
+    shape = 24,
+    fill = "red"
+  ) + geom_hline(yintercept = 1,linetype="longdash")
+
+#By architecture
+finalCommunitySizes %>% ggplot(aes(as.factor(ArchitectureType),Deviation*100,fill=as.factor(ArchitectureType))) + geom_violin() + theme_bw() + xlab("Architecture Type") + ylab("Deviation from Final Community Size (%)") + theme(legend.position="none",text=element_text(size=22))+stat_summary(
+    geom = "point",
+    fun = "mean",
+    col = "black",
+    size = 5,
+    shape = 24,
+    fill = "red"
+  ) + geom_hline(yintercept = 0,linetype="longdash")
+
+#By architecture+time awareness
+finalCommunitySizes %>% mutate(ModelArchitecture = paste(sep="+",ModelType,ArchitectureType)) %>%  ggplot(aes(as.factor(ModelArchitecture),Deviation)) + geom_violin() + geom_point()+ geom_hline(yintercept=0) +  stat_summary(
+    geom = "point",
+    fun = "mean",
+    col = "black",
+    size = 3,
+    shape = 24,
+    fill = "red"
+  )
+
+#By training size
+finalCommunitySizes %>% ggplot(aes(as.factor(TrainingSize),Deviation)) + geom_violin() + geom_point()+ geom_hline(yintercept=0) +  stat_summary(
+    geom = "point",
+    fun = "mean",
+    col = "black",
+    size = 3,
+    shape = 24,
+    fill = "red"
+  )
+
+#By noise
+finalCommunitySizes %>% ggplot(aes(as.factor(ObservationError),Deviation)) + geom_violin() + geom_point()+ geom_hline(yintercept=0) +  stat_summary(
+    geom = "point",
+    fun = "mean",
+    col = "black",
+    size = 3,
+    shape = 24,
+    fill = "red"
+  )
+
+#By community size
+finalCommunitySizes %>% ggplot(aes(as.factor(CommunitySize),Deviation)) + geom_violin() + geom_point() + geom_hline(yintercept=0) +  stat_summary(
+    geom = "point",
+    fun = "mean",
+    col = "black",
+    size = 3,
+    shape = 24,
+    fill = "red"
+  )
+```
+
+```{r}
+p1 <- finalCommunitySizes %>% ggplot(aes(Factor*100,color = as.factor(ArchitectureType))) + geom_density(linewidth=2) + geom_vline(xintercept = 0,linetype = 'longdash') + theme_bw() + geom_vline(data=(finalCommunitySizes %>% group_by(ArchitectureType) %>% summarise(xvalue = median(Deviation*100))), aes(xintercept=xvalue, colour=ArchitectureType),linewidth=1.5,linetype='dashed')  + xlab("Deviation from Final Community Size (%)") + ylab("Frequency") + labs(color = "Architecture Type")+theme(text=element_text(size=22))
+
+p2 <- finalCommunitySizes %>% ggplot(aes(Factor*100,color = as.factor(ModelType))) + geom_density(linewidth=2) + geom_vline(xintercept = 0,linetype = 'longdash') + theme_bw() + geom_vline(data=(finalCommunitySizes %>% group_by(ModelType) %>% summarise(xvalue = median(Deviation*100))), aes(xintercept=xvalue, colour=ModelType),linewidth=1.5,linetype='dashed')  + xlab("Deviation from Final Community Size (%)") + ylab("Frequency") + labs(color = "Model Type")+theme(text=element_text(size=22))
+```
+
+```{r}
+finalCommunitySizes %>% filter(NumberPredictedAtEnd>0) %>%  ggplot(aes(NumberAtEnd,NumberPredictedAtEnd,color=ArchitectureType,shape=ArchitectureType))+geom_point(size=4,position = position_dodge(width=0.9))+geom_abline(slope=1,intercept=0)+theme_bw()+xlab("Real Final Community Size")+ ylab("Predicted Final Community Size") + labs(color = "Architecture Type",shape="Architecture Type")+theme(text=element_text(size=22))
+finalCommunitySizes %>% filter(NumberPredictedAtEnd>0) %>%  ggplot(aes(NumberAtEnd,NumberPredictedAtEnd,color=ModelType,shape=ModelType))+geom_point(size=4,position = position_dodge(width=0.9))+geom_abline(slope=1,intercept=0)+theme_bw()+xlab("Real Final Community Size")+ ylab("Predicted Final Community Size") + labs(color = "Model Type",shape="Model Type")+theme(text=element_text(size=22))
+```
+
