@@ -13,14 +13,14 @@ Tmax = 100
 #Run NODEs
 @floop for (communitySize,observationError,trainingSize) in Iterators.product(communitySizes,observationErrors,trainingSizes)
     for i in 1:numberofTimeSeries
-        timeSeries = readdlm("Data/timeSeries_communitySize_"*string(communitySize)*"_observationError_"*
-        string(observationError)*"_rep_"*string(i)*".csv")
+        timeSeries = Float32.(readdlm("Data/timeSeries_communitySize_"*string(communitySize)*"_observationError_"*
+        string(observationError)*"_rep_"*string(i)*".csv"))
         for j in 1:initialWeightsNumber
 	    #Check to prevent double work
 	    isfile("Models/nonautonomous_NODE_communitySize_"*string(communitySize)*"_observationError_"*
                     string(observationError)*"_trainingSize_"*string(trainingSize)*"_rep_"*string(i)*"_"*string(j)*".jls") && continue
             #Training of models
-            NODENonAutonomous = denseLayersLux(communitySize,communitySize*2)
+            NODENonAutonomous = denseLayersLux(communitySize+1,communitySize*2)
             trainedParamsNODENonAutonomous = trainNODEModel(NODENonAutonomous,[timeSeries[:,1:trainingSize];collect(1:trainingSize)'])
             saveNeuralNetwork(NODE(NODENonAutonomous,trainedParamsNODENonAutonomous),
                 fileName="Models/nonautonomous_NODE_communitySize_"*string(communitySize)*"_observationError_"*
@@ -28,7 +28,7 @@ Tmax = 100
 
             #Testing of models
             NODENonAutonomousTest = testNODEModel(trainedParamsNODENonAutonomous,NODENonAutonomous,[timeSeries[:,(trainingSize)];trainingSize],50)
-            writedlm("Results/test_nonautonomous_NODE_communitySize_"*string(communitySize)*"_observationError_"*
+            CUDA.@allowscalar writedlm("Results/test_nonautonomous_NODE_communitySize_"*string(communitySize)*"_observationError_"*
                 string(observationError)*"_trainingSize_"*string(trainingSize)*"_rep_"*string(i)*"_"*string(j)*".csv",NODENonAutonomousTest)
             
         end

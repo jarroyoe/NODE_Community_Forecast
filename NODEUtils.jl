@@ -1,6 +1,7 @@
 using OrdinaryDiffEq, ModelingToolkit, DataDrivenDiffEq, SciMLSensitivity, DataDrivenSparse, DiffEqFlux
 using Optimization, OptimizationOptimisers, OptimizationOptimJL
 using ComponentArrays, Lux, Zygote, Plots, Random, StatsBase
+using CUDA
 using DelimitedFiles, Serialization
 rng = Random.default_rng()
 
@@ -20,10 +21,9 @@ function knownDynamics end #create function to point methods of UDE objects to
 #Model architectures
 function denseLayersLux(inputSize,hiddenSize;functions=nothing)
     if isnothing(functions)
-        functions = [tanh]
+        functions = tanh
     end
     nn = Lux.Chain(Lux.Dense(inputSize,hiddenSize,functions),
-                    Lux.Dense(hiddenSize),
                     Lux.Dense(hiddenSize,inputSize))
     return nn
 end
@@ -31,10 +31,14 @@ end
 #Training and testing models
 function trainNODEModel(neuralNetwork,training_data)
     p, st = Lux.setup(rng,neuralNetwork)
-    neuralode = NeuralODE(neuralNetwork, (Float32(1),Float32(size(training_data,2))), AutoTsit5(Rosenbrock23()),saveat=1)
+    st = st |> Lux.gpu
+    p64 = Float64.(Lux.gpu(ComponentArray(p)))
+    training_data = Lux.gpu(training_data)
+    x0 = training_data[:,1] |> Lux.gpu
+    neuralode = NeuralODE(neuralNetwork, (1.,Float64(size(training_data,2))), AutoTsit5(Rosenbrock23()),saveat=1.)
 
     function predict_neuralode(p)
-        Array(neuralode(training_data[:,1], p,st)[1])
+        Lux.gpu(first(neuralode(x0, p,st)))
     end
     
     function loss_function(p)
@@ -53,11 +57,10 @@ function trainNODEModel(neuralNetwork,training_data)
       return false
       end
 
-    pinit = ComponentVector(p)
 
     adtype = Optimization.AutoZygote()
     optf = Optimization.OptimizationFunction((x, p) -> loss_function(x), adtype)
-    optprob = Optimization.OptimizationProblem(optf, pinit)
+    optprob = Optimization.OptimizationProblem(optf,p64)
 
     result_neuralode = Optimization.solve(optprob,
                                            ADAM(0.005),
@@ -75,9 +78,10 @@ function trainNODEModel(neuralNetwork,training_data)
 end
 
 function testNODEModel(params,neuralNetwork,x0,T)
-    p, st = Lux.setup(rng,neuralNetwork)
-    neuralode = NeuralODE(neuralNetwork,(Float32(0),Float32(T)),AutoTsit5(Rosenbrock23()),saveat=1)
-    return Array(neuralode(x0,params,st)[1])                                                                                                                                                                                                                                                                                                                 
+    p, st = Lux.setup(rng,neuralNetwork) |> Lux.gpu
+    x0 = Lux.gpu(x0)
+    neuralode = NeuralODE(neuralNetwork,(0.,Float64(T)),AutoTsit5(Rosenbrock23()),saveat=1)
+    return Lux.gpu(first(neuralode(x0,params,st)))                                                                                                                                                                                                                                                                                                                 
 end
 
 #SDE Models WIP
