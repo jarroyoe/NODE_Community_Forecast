@@ -1,6 +1,6 @@
 using OrdinaryDiffEq, ModelingToolkit, DataDrivenDiffEq, SciMLSensitivity, DataDrivenSparse, DiffEqFlux
 using Optimization, OptimizationOptimisers, OptimizationOptimJL
-using ComponentArrays, Lux, Zygote, Plots, Random, StatsBase
+using ComponentArrays, Lux, Zygote, Plots, Random, StatsBase, LinearAlgebra
 using CUDA
 using DelimitedFiles, Serialization
 rng = Random.default_rng()
@@ -41,21 +41,14 @@ function trainNODEModel(neuralNetwork,training_data)
         Lux.gpu(first(neuralode(x0, p,st)))
     end
     
+    lipschitz_regularizer = 0.01
     function loss_function(p)
+        lipschitz_constant = opnorm(p[1].weight'*p[1].weight)*opnorm(p[2].weight'*p[2].weight)
+
         pred = predict_neuralode(p)
-        loss = sum(abs2,training_data .- pred)
+        loss = sum(abs2,training_data .- pred)/size(training_data,1) + lipschitz_regularizer*lipschitz_constant
         return loss, pred
     end
-
-    losses = Float32[]
-
-    callback = function (p, l)
-        push!(losses, l)
-      if length(losses)%50==0
-            println("Current loss after $(length(losses)) iterations: $(losses[end])")
-      end
-      return false
-      end
 
 
     adtype = Optimization.AutoZygote()
