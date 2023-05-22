@@ -164,12 +164,15 @@ end
 
 function trainUDEModel(neuralNetwork,knownDynamics,training_data;needed_ps = Float32[],p_true = Float32[])
     ps, st = Lux.setup(rng, neuralNetwork)
-    ps64 = Float64.(ComponentArray(ps))
-    ps_dynamics = ComponentArray((predefined_params = rand(Float64, needed_ps), model_params = ps64))
+
+    #ps_dynamics = Lux.ComponentArray((predefined_params = rand(Float32, needed_ps), model_params = ps))
     
+
     function ude!(du,u,p,t,q)
-        knownPred = knownDynamics(u,p.predefined_params,q)
-        nnPred = Array(neuralNetwork(u,p.model_params,st)[1])
+        #knownPred = knownDynamics(u,p.predefined_params,q)
+        knownPred = knownDynamics(u,nothing,q)
+        #nnPred = Array(neuralNetwork(u,p.model_params,st)[1])
+        nnPred = Array(neuralNetwork(u,p,st)[1])
 
         for i in 1:length(u)
             du[i] = knownPred[i]+nnPred[i]
@@ -179,13 +182,13 @@ function trainUDEModel(neuralNetwork,knownDynamics,training_data;needed_ps = Flo
     # Closure with the known parameter
     nn_dynamics!(du,u,p,t) = ude!(du,u,p,t,p_true)
     # Define the problem
-    prob_nn = ODEProblem(nn_dynamics!,training_data[:, 1], (Float64(1),Float64(size(training_data,2))), ps_dynamics)
+    prob_nn = ODEProblem(nn_dynamics!,training_data[:, 1], (Float32(1),Float32(size(training_data,2))), ps)
     ## Function to train the network
     # Define a predictor
     function predict(p, X = training_data[:,1], T = 1:size(training_data,2))
         _prob = remake(prob_nn, u0 = X, tspan = (T[1], T[end]), p = p)
-        Array(solve(_prob, RadauIIA5(), saveat = T,
-                abstol=1e-12, reltol=1e-12
+        Array(solve(_prob, Tsit5(), saveat = T,
+                abstol=1e-6, reltol=1e-6
                 ))
     end
 
@@ -195,8 +198,18 @@ function trainUDEModel(neuralNetwork,knownDynamics,training_data;needed_ps = Flo
         sum(abs2, training_data .- X̂)
     end
 
+    losses = Float64[]
+
+    callback = function (p, l)
+      push!(losses, l)
+    if length(losses)%50==0
+          println("Current loss after $(length(losses)) iterations: $(losses[end])")
+    end
+    return false
+    end
+
     ## Training
-    pinit = ComponentVector(ps_dynamics)
+    pinit = ComponentVector(ps)
     #callback(pinit, loss_function(pinit)...; doplot=true)
 
     adtype = Optimization.AutoZygote()
@@ -220,10 +233,10 @@ end
 
 function testUDEModel(params,neuralNetwork,knownDynamics,x0,T;p_true = nothing)
     ps, st = Lux.setup(rng, neuralNetwork)
-
+    
     function ude!(du,u,p,t,q)
-        knownPred = knownDynamics(u,p.predefined_params,q)
-        nnPred = Array(neuralNetwork(u,p.model_params,st)[1])
+        knownPred = knownDynamics(u,nothing,q)
+        nnPred = Array(neuralNetwork(u,p,st)[1])
 
         for i in 1:length(u)
             du[i] = knownPred[i]+nnPred[i]
@@ -232,8 +245,8 @@ function testUDEModel(params,neuralNetwork,knownDynamics,x0,T;p_true = nothing)
     # Closure with the known parameter
     nn_dynamics!(du,u,p,t) = ude!(du,u,p,t,p_true)
     # Define the problem
-    prob_nn = ODEProblem(nn_dynamics!,x0, (Float64(1),Float64(T)), params)
-    prediction = Array(solve(prob_nn, Rodas4P(), saveat = 1,
+    prob_nn = ODEProblem(nn_dynamics!,x0, (Float32(0),Float32(T)), params)
+    prediction = Array(solve(prob_nn, Tsit5(), saveat = 1,
                 abstol=1e-6, reltol=1e-6
                 ))
     return prediction
