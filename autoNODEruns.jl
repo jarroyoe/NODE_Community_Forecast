@@ -11,10 +11,10 @@ initialWeightsNumber = 4
 Tmax = 100
 
 #Run NODEs
-@floop for (communitySize,observationError,trainingSize) in Iterators.product(communitySizes,observationErrors,trainingSizes)
+for (communitySize,observationError,trainingSize) in Iterators.product(communitySizes,observationErrors,trainingSizes)
     for i in 1:numberofTimeSeries
-        timeSeries = readdlm("Data/timeSeries_communitySize_"*string(communitySize)*"_observationError_"*
-        string(observationError)*"_rep_"*string(i)*".csv")
+        timeSeries = (readdlm("Data/timeSeries_communitySize_"*string(communitySize)*"_observationError_"*
+        string(observationError)*"_rep_"*string(i)*".csv"))
         for j in 1:initialWeightsNumber
 	    #Check to prevent double work
 	    isfile("Models/autonomous_NODE_communitySize_"*string(communitySize)*"_observationError_"*
@@ -29,7 +29,7 @@ Tmax = 100
             
             #Testing of models
             NODEAutonomousTest = testNODEModel(trainedParamsNODEAutonomous,NODEAutonomous,timeSeries[:,(trainingSize)],50)
-            writedlm("Results/test_autonomous_NODE_communitySize_"*string(communitySize)*"_observationError_"*
+            CUDA.@allowscalar writedlm("Results/test_autonomous_NODE_communitySize_"*string(communitySize)*"_observationError_"*
                 string(observationError)*"_trainingSize_"*string(trainingSize)*"_rep_"*string(i)*"_"*string(j)*".csv",NODEAutonomousTest)
         end
     end
