@@ -22,7 +22,7 @@ Tmax = 100
                     string(observationError)*"_trainingSize_"*string(trainingSize)*"_rep_"*string(i)*"_"*string(j)*".jls") && continue
 
             #Training of models
-            UDENonAutonomous = denseLayersLux(communitySize,communitySize*2)
+            UDENonAutonomous = denseLayersLux(communitySize+1,[communitySize*3,communitySize*2])
             trainedParamsUDENonAutonomous = trainUDEModel(UDENonAutonomous,knownDynamics,[timeSeries[:,1:trainingSize];collect(1:trainingSize)'],p_true=1)
             saveNeuralNetwork(UDE(UDENonAutonomous,trainedParamsUDENonAutonomous,knownDynamics),
                 fileName="Models/nonautonomous_UDE_communitySize_"*string(communitySize)*"_observationError_"*
