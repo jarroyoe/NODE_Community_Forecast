@@ -48,7 +48,7 @@ function trainNODEModel(neuralNetwork,training_data)
         lipschitz_constant = spectralRadius(W1)*spectralRadius(W2)
 
         pred = predict_neuralode(p)
-        loss = sum(abs2,training_data .- pred)/size(training_data,1) + lipschitz_regularizer*lipschitz_constant
+        loss = sum(abs2,training_data .- pred)/size(training_data,2) + lipschitz_regularizer*lipschitz_constant
         return loss, pred
     end
 
