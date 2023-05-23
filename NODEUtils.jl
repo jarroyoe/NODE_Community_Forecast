@@ -30,9 +30,9 @@ end
 
 #Training and testing models
 function trainNODEModel(neuralNetwork,training_data)
-    p, st = Lux.setup(rng,neuralNetwork)
+    pinit, st = Lux.setup(rng,neuralNetwork)
     st = st |> Lux.gpu
-    p64 = Float64.(Lux.gpu(ComponentArray(p)))
+    p64 = Float64.(Lux.gpu(ComponentArray(pinit)))
     training_data = Lux.gpu(training_data)
     x0 = training_data[:,1] |> Lux.gpu
     neuralode = NeuralODE(neuralNetwork, (1.,Float64(size(training_data,2))), AutoTsit5(Rosenbrock23()),saveat=1.)
@@ -43,7 +43,9 @@ function trainNODEModel(neuralNetwork,training_data)
     
     lipschitz_regularizer = 0.01
     function loss_function(p)
-        lipschitz_constant = opnorm(p[1].weight'*p[1].weight)*opnorm(p[2].weight'*p[2].weight)
+	W1 = CUDA.@allowscalar reshape(p.layer_1[1:(end-length(pinit.layer_1[2]))],size(pinit.layer_1[1]))
+	W2 = CUDA.@allowscalar reshape(p.layer_2[1:(end-length(pinit.layer_2[2]))],size(pinit.layer_2[1]))
+        lipschitz_constant = spectralRadius(W1)*spectralRadius(W2)
 
         pred = predict_neuralode(p)
         loss = sum(abs2,training_data .- pred)/size(training_data,1) + lipschitz_regularizer*lipschitz_constant
@@ -253,6 +255,18 @@ end
 
 function rowwiseCoefficientOfVariation(data)
     [variation(data[:,i]) for i in 1:size(data,2)]
+end
+
+function spectralRadius(X,niters=10)
+    y = randn!(similar(X, size(X, 2)))
+    tmp = X * y
+    for i in 1:niters
+        tmp = X*y
+        tmp = tmp / norm(tmp)
+        y = X' * tmp
+        y = y / norm(y)
+    end
+    return norm(X*y)
 end
 
 #Save functions
