@@ -41,10 +41,10 @@ function trainNODEModel(neuralNetwork,training_data)
         Lux.gpu(first(neuralode(x0, p,st)))
     end
     
-    lipschitz_regularizer = 0.01
+    lipschitz_regularizer = 0.5
     function loss_function(p)
-	W1 = CUDA.@allowscalar reshape(p.layer_1[1:(end-length(pinit.layer_1[2]))],size(pinit.layer_1[1]))
-	W2 = CUDA.@allowscalar reshape(p.layer_2[1:(end-length(pinit.layer_2[2]))],size(pinit.layer_2[1]))
+	W1 = p.layer_1.weight
+	W2 = p.layer_2.weight
         lipschitz_constant = spectralRadius(W1)*spectralRadius(W2)
 
         pred = predict_neuralode(p)

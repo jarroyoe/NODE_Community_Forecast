@@ -4,9 +4,9 @@ include("dataGeneration.jl")
 
 #Run conditions
 communitySizes = [10,40]
-observationErrors = [0,1e-3,1e-1]
+observationErrors = [0,1e-2,1e-1]
 numberofTimeSeries = 2
-trainingSizes = [10, 30, 50]
+trainingSizes = [10, 30, 50, 100]
 initialWeightsNumber = 4
 Tmax = 100
 
