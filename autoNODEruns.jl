@@ -4,9 +4,9 @@ include("dataGeneration.jl")
 
 #Run conditions
 communitySizes = [10,40]
-observationErrors = [0,1e-3,1e-1]
+observationErrors = [0,1e-2,1e-1]
 numberofTimeSeries = 2
-trainingSizes = [10, 30, 50]
+trainingSizes = [10, 30, 50, 100]
 initialWeightsNumber = 4
 Tmax = 100
 
@@ -21,7 +21,7 @@ for (communitySize,observationError,trainingSize) in Iterators.product(community
                     string(observationError)*"_trainingSize_"*string(trainingSize)*"_rep_"*string(i)*"_"*string(j)*".jls") && continue
 
             #Training of models
-            NODEAutonomous = denseLayersLux(communitySize,[communitySize*3,communitySize*2])
+            NODEAutonomous = denseLayersLux(communitySize,communitySize*2)
             trainedParamsNODEAutonomous = trainNODEModel(NODEAutonomous,timeSeries[:,1:trainingSize])
             saveNeuralNetwork(NODE(NODEAutonomous,trainedParamsNODEAutonomous),
                 fileName="Models/autonomous_NODE_communitySize_"*string(communitySize)*"_observationError_"*
