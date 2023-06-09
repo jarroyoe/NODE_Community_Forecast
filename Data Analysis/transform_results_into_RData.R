@@ -2,8 +2,8 @@ rm(list=ls())
 library(dplyr)
 
 communitySizes <- c(10,40)
-observationErrors <- c("0.0","0.1","0.001")
-trainingSizes <- c(10,30,50)
+observationErrors <- c("0.0","0.1","0.01")
+trainingSizes <- c(10,30,50,100)
 timeAware <- c("autonomous","nonautonomous")
 architecture <- c("NODE","UDE")
 

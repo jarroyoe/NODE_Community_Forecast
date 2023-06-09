@@ -2,9 +2,9 @@ rm(list = ls())
 library(dplyr)
 library(forecast)
 
-communitySizes <- c(10,40)
-observationErrors <- c("0.0","0.1","0.001")
-trainingSizes <- c(10,30,50)
+communitySizes <- c(10)
+observationErrors <- c("0.0","0.1","0.01")
+trainingSizes <- c(10,30,50,100)
 
 ARIMAPredictions <- data.frame(CommunitySize = integer(),
                               ObservationError = double(),
