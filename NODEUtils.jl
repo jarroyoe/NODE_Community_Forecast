@@ -79,118 +79,43 @@ function testNODEModel(params,neuralNetwork,x0,T)
     return Lux.gpu(first(neuralode(x0,params,st)))                                                                                                                                                                                                                                                                                                                 
 end
 
-#SDE Models WIP
-# function trainSDEModel(driftneuralNetwork,diffusionneuralNetwork,training_data)
-#     p1, re1 = Flux.destructure(driftneuralNetwork)
-#     p2, re2 = Flux.destructure(diffusionneuralNetwork)
-
-#     neuralsde = NeuralDSDE(driftneuralNetwork,diffusionneuralNetwork,(Float32(1),Float32(size(training_data,2))),SOSRI(),saveat = 1)
-
-#     function predict_neuralsde(p,u=training_data[:,1])
-#         Array(neuralsde(u, p))
-#     end
-    
-#     function loss_function(p;n=100)
-#         u = repeat(reshape(training_data[:,1], :, 1), 1, n)
-#         samples = predict_neuralsde(p, u)
-#         means = mean(samples, dims = 2)
-#         vars = var(samples, dims = 2, mean = means)[:, 1, :]
-#         means = means[:, 1, :]
-#         loss = sum(abs2, training_data - means)
-#         return loss, means, vars
-#     end
-
-#     callback = function (p, loss, means, vars; doplot = false)
-#         global list_plots, iter
-      
-#         if iter == 0
-#           list_plots = []
-#         end
-#         iter += 1
-      
-#         # loss against current data
-#         display(loss)
-      
-#         # plot current prediction against data
-#         plt = Plots.scatter(tsteps, ode_data[1,:], yerror = sde_data_vars[1,:],
-#                            ylim = (-4.0, 8.0), label = "data")
-#         Plots.scatter!(plt, tsteps, means[1,:], ribbon = vars[1,:], label = "prediction")
-#         push!(list_plots, plt)
-      
-#         if doplot
-#           display(plt)
-#         end
-#         return false
-#       end
-
-#     opt = ADAM(0.025)
-
-#     # First round of training with n = 10
-#     adtype = Optimization.AutoZygote()
-#     optf = Optimization.OptimizationFunction((x,p) -> loss_function(x, n=10), adtype)
-#     optprob = Optimization.OptimizationProblem(optf, neuralsde.p)
-#     result1 = Optimization.solve(optprob, opt,
-#                                  callback = callback, maxiters = 100)
-
-#     optf2 = Optimization.OptimizationFunction((x,p) -> loss_function(x, n=100), adtype)
-#     optprob2 = Optimization.OptimizationProblem(optf2, result1.u)
-#     result2 = Optimization.solve(optprob2, opt,
-#                                 callback = callback, maxiters = 100)
-#     return result2
-# end
-
-# function testSDEModel(params,driftneuralNetwork,diffusionneuralNetwork,x0,T)
-#     neuralsde = NeuralSDE(driftneuralNetwork,diffusionneuralNetwork,(Float32(0),Float32(T)),SOSRI(),saveat = 1)
-    
-#     function loss_function(p;n=100)
-#         u = repeat(reshape(x0, :, 1), 1, n)
-#         samples = predict_neuralsde(p, u)
-#         means = mean(samples, dims = 2)
-#         vars = var(samples, dims = 2, mean = means)[:, 1, :]
-#         means = means[:, 1, :]
-#         loss = sum(abs2, sde_data - means) + sum(abs2, sde_data_vars - vars)
-#         return loss, means, vars
-#     end                             
-    
-#     _, means, vars = loss_function(params, n = 1000)
-
-#     return means,vars
-# end
-
 function trainUDEModel(neuralNetwork,knownDynamics,training_data;needed_ps = Float32[],p_true = Float32[])
-    ps, st = Lux.setup(rng, neuralNetwork)
+    pinit, st = Lux.setup(rng,neuralNetwork)
+    st = st |> Lux.gpu
+    p64 = Float64.(Lux.gpu(ComponentArray(pinit)))
+    training_data = Lux.gpu(training_data)
+    x0 = training_data[:,1] |> Lux.gpu
 
-    #ps_dynamics = Lux.ComponentArray((predefined_params = rand(Float32, needed_ps), model_params = ps))
-    
 
     function ude!(du,u,p,t,q)
-        #knownPred = knownDynamics(u,p.predefined_params,q)
-        knownPred = knownDynamics(u,nothing,q)
-        #nnPred = Array(neuralNetwork(u,p.model_params,st)[1])
-        nnPred = Array(neuralNetwork(u,p,st)[1])
+        knownPred = Lux.gpu(knownDynamics(u,nothing,q))
+        nnPred = Lux.gpu(first(neuralNetwork(u,p,st)))
 
-        for i in 1:length(u)
-            du[i] = knownPred[i]+nnPred[i]
-        end
+        du = knownPred .+ nnPred
     end
 
     # Closure with the known parameter
     nn_dynamics!(du,u,p,t) = ude!(du,u,p,t,p_true)
     # Define the problem
-    prob_nn = ODEProblem(nn_dynamics!,training_data[:, 1], (Float32(1),Float32(size(training_data,2))), ps)
+    prob_nn = ODEProblem(nn_dynamics!,training_data[:, 1], (Float64(1),Float64(size(training_data,2))), AutoTsit5(Rosenbrock23()), ps)
     ## Function to train the network
     # Define a predictor
-    function predict(p, X = training_data[:,1], T = 1:size(training_data,2))
+    function predict(p, X = training_data[:,1], T = Float64(1):Float64(size(training_data,2)))
         _prob = remake(prob_nn, u0 = X, tspan = (T[1], T[end]), p = p)
-        Array(solve(_prob, Tsit5(), saveat = T,
+        Lux.gpu(first(solve(_prob, AutoTsit5(Rosenbrock23()), saveat = T,
                 abstol=1e-6, reltol=1e-6
-                ))
+                )))
     end
 
-    # Simple L2 loss
+    lipschitz_regularizer = 0.5
     function loss_function(p)
-        X̂ = predict(p)
-        sum(abs2, training_data .- X̂)
+	    W1 = p.layer_1.weight
+	    W2 = p.layer_2.weight
+        lipschitz_constant = spectralRadius(W1)*spectralRadius(W2)
+
+        pred = predict(p)
+        loss = sum(abs2,training_data .- pred)/size(training_data,2) + lipschitz_regularizer*lipschitz_constant
+        return loss
     end
 
     losses = Float64[]
@@ -204,22 +129,21 @@ function trainUDEModel(neuralNetwork,knownDynamics,training_data;needed_ps = Flo
     end
 
     ## Training
-    pinit = ComponentVector(ps)
     #callback(pinit, loss_function(pinit)...; doplot=true)
 
     adtype = Optimization.AutoZygote()
     optf = Optimization.OptimizationFunction((x, p) -> loss_function(x), adtype)
-    optprob = Optimization.OptimizationProblem(optf, pinit)
+    optprob = Optimization.OptimizationProblem(optf, p64)
 
     result_neuralode = Optimization.solve(optprob,
                                            ADAM(),
-                                           #callback = callback,
+                                           callback = callback,
                                            maxiters = 300)
 
     optprob2 = remake(optprob,u0 = result_neuralode.u)
     result_neuralode2 = Optimization.solve(optprob2,
                                             Optim.BFGS(initial_stepnorm=0.01),
-                                            #callback=callback,
+                                            callback=callback,
                                             allow_f_increases = false)
 
 
@@ -227,21 +151,20 @@ function trainUDEModel(neuralNetwork,knownDynamics,training_data;needed_ps = Flo
 end
 
 function testUDEModel(params,neuralNetwork,knownDynamics,x0,T;p_true = nothing)
-    ps, st = Lux.setup(rng, neuralNetwork)
+    ps, st = Lux.setup(rng, neuralNetwork) |> Lux.gpu
     
     function ude!(du,u,p,t,q)
-        knownPred = knownDynamics(u,nothing,q)
-        nnPred = Array(neuralNetwork(u,p,st)[1])
+        knownPred = Lux.gpu(knownDynamics(u,nothing,q))
+        nnPred = Lux.gpu(first(neuralNetwork(u,p,st)))
 
-        for i in 1:length(u)
-            du[i] = knownPred[i]+nnPred[i]
-        end
+        du = knownPred .+ nnPred
     end
+
     # Closure with the known parameter
     nn_dynamics!(du,u,p,t) = ude!(du,u,p,t,p_true)
     # Define the problem
-    prob_nn = ODEProblem(nn_dynamics!,x0, (Float32(0),Float32(T)), params)
-    prediction = Array(solve(prob_nn, Tsit5(), saveat = 1,
+    prob_nn = ODEProblem(nn_dynamics!,Lux.gpu(x0), (Float64(0),Float64(T)), params)
+    prediction = Array(solve(prob_nn, AutoTsit5(Rosenbrock23()), saveat = 1,
                 abstol=1e-6, reltol=1e-6
                 ))
     return prediction

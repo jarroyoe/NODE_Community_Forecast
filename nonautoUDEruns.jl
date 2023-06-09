@@ -4,9 +4,9 @@ include("dataGeneration.jl")
 
 #Run conditions
 communitySizes = [10,40]
-observationErrors = [0,1e-3,1e-1]
+observationErrors = [0,1e-2,1e-1]
 numberofTimeSeries = 2
-trainingSizes = [10, 30, 50]
+trainingSizes = [10, 30, 50, 100]
 initialWeightsNumber = 4
 Tmax = 100
 
@@ -14,7 +14,7 @@ Tmax = 100
 @floop for (communitySize,observationError,trainingSize) in Iterators.product(communitySizes,observationErrors,trainingSizes)
     for i in 1:numberofTimeSeries
 	knownDynamics(x,m,q) = [-q*ones(communitySize);1]
-        timeSeries = Float32.(readdlm("Data/timeSeries_communitySize_"*string(communitySize)*"_observationError_"*
+        timeSeries = (readdlm("Data/timeSeries_communitySize_"*string(communitySize)*"_observationError_"*
         string(observationError)*"_rep_"*string(i)*".csv"))
         for j in 1:initialWeightsNumber
 	    #Check to prevent double work
