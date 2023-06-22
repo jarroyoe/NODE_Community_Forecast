@@ -21,7 +21,7 @@ Tmax = 100
 	    isfile("Models/autonomous_UDE_communitySize_"*string(communitySize)*"_observationError_"*
                     string(observationError)*"_trainingSize_"*string(trainingSize)*"_rep_"*string(i)*"_"*string(j)*".jls") && continue
 
-            UDEAutonomous = denseLayersLux(communitySize,[communitySize*3,communitySize*2])
+            UDEAutonomous = denseLayersLux(communitySize,communitySize*2)
             trainedParamsUDEAutonomous = trainUDEModel(UDEAutonomous,knownDynamics,timeSeries[:,1:trainingSize],p_true=1)
             saveNeuralNetwork(UDE(UDEAutonomous,trainedParamsUDEAutonomous,knownDynamics),
                 fileName="Models/autonomous_UDE_communitySize_"*string(communitySize)*"_observationError_"*
@@ -29,7 +29,7 @@ Tmax = 100
                 
             #Testing of models
             UDEAutonomousTest = testUDEModel(trainedParamsUDEAutonomous,UDEAutonomous,knownDynamics,timeSeries[:,(trainingSize)],50,p_true=1)
-            writedlm("Results/test_autonomous_UDE_communitySize_"*string(communitySize)*"_observationError_"*
+            CUDA.@allowscalar writedlm("Results/test_autonomous_UDE_communitySize_"*string(communitySize)*"_observationError_"*
                 string(observationError)*"_trainingSize_"*string(trainingSize)*"_rep_"*string(i)*"_"*string(j)*".csv",UDEAutonomousTest)
         end
     end
