@@ -6,7 +6,7 @@ include("dataGeneration.jl")
 communitySizes = [10,40]
 observationErrors = [0,1e-2,1e-1]
 numberofTimeSeries = 2
-trainingSizes = [10, 30, 50, 100]
+trainingSizes = [30, 50, 100]
 initialWeightsNumber = 4
 Tmax = 100
 
@@ -28,7 +28,7 @@ for (communitySize,observationError,trainingSize) in Iterators.product(community
                     string(observationError)*"_trainingSize_"*string(trainingSize)*"_rep_"*string(i)*"_"*string(j))
             
             #Testing of models
-            NODEAutonomousTest = testNODEModel(trainedParamsNODEAutonomous,NODEAutonomous,timeSeries[:,(trainingSize)],50)
+            NODEAutonomousTest = testNODEModel(trainedParamsNODEAutonomous,NODEAutonomous,timeSeries[:,(trainingSize)],30)
             CUDA.@allowscalar writedlm("Results/test_autonomous_NODE_communitySize_"*string(communitySize)*"_observationError_"*
                 string(observationError)*"_trainingSize_"*string(trainingSize)*"_rep_"*string(i)*"_"*string(j)*".csv",NODEAutonomousTest)
         end

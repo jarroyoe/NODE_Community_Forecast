@@ -6,7 +6,7 @@ include("dataGeneration.jl")
 communitySizes = [10,40]
 observationErrors = [0,1e-2,1e-1]
 numberofTimeSeries = 2
-trainingSizes = [10, 30, 50, 100]
+trainingSizes = [30, 50, 80]
 initialWeightsNumber = 4
 Tmax = 100
 
@@ -28,7 +28,7 @@ Tmax = 100
                     string(observationError)*"_trainingSize_"*string(trainingSize)*"_rep_"*string(i)*"_"*string(j))
                 
             #Testing of models
-            UDEAutonomousTest = testUDEModel(trainedParamsUDEAutonomous,UDEAutonomous,knownDynamics,timeSeries[:,(trainingSize)],50,p_true=1)
+            UDEAutonomousTest = testUDEModel(trainedParamsUDEAutonomous,UDEAutonomous,knownDynamics,timeSeries[:,(trainingSize)],30,p_true=1)
             CUDA.@allowscalar writedlm("Results/test_autonomous_UDE_communitySize_"*string(communitySize)*"_observationError_"*
                 string(observationError)*"_trainingSize_"*string(trainingSize)*"_rep_"*string(i)*"_"*string(j)*".csv",UDEAutonomousTest)
         end

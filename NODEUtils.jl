@@ -35,7 +35,7 @@ function trainNODEModel(neuralNetwork,training_data)
     p64 = Float64.(Lux.gpu(ComponentArray(pinit)))
     training_data = Lux.gpu(training_data)
     x0 = training_data[:,1] |> Lux.gpu
-    neuralode = NeuralODE(neuralNetwork, (1.,Float64(size(training_data,2))), AutoTsit5(Rosenbrock23()),saveat=1.)
+    neuralode = NeuralODE(neuralNetwork, (0,(Float64(size(training_data,2)-1)*7)), AutoTsit5(Rosenbrock23()),saveat=7.)
 
     function predict_neuralode(p)
         Lux.gpu(first(neuralode(x0, p,st)))
@@ -75,7 +75,7 @@ end
 function testNODEModel(params,neuralNetwork,x0,T)
     p, st = Lux.setup(rng,neuralNetwork) |> Lux.gpu
     x0 = Lux.gpu(x0)
-    neuralode = NeuralODE(neuralNetwork,(0.,Float64(T)),AutoTsit5(Rosenbrock23()),saveat=1)
+    neuralode = NeuralODE(neuralNetwork,(0.,Float64(T)*7),AutoTsit5(Rosenbrock23()),saveat=7.)
     return Lux.gpu(first(neuralode(x0,params,st)))                                                                                                                                                                                                                                                                                                                 
 end
 
@@ -96,12 +96,12 @@ function trainUDEModel(neuralNetwork,knownDynamics,training_data;needed_ps = Flo
     # Closure with the known parameter
     nn_dynamics(u,p,t) = ude(u,p,t,p_true)
     # Define the problem
-    prob_nn = ODEProblem(nn_dynamics,x0, (Float64(1),Float64(size(training_data,2))), p64)
+    prob_nn = ODEProblem(nn_dynamics,x0, (Float64(0),7*Float64(size(training_data,2))), p64)
     ## Function to train the network
     # Define a predictor
     function predict(p, X = x0)
-        _prob = remake(prob_nn, u0 = X, tspan = (Float64(1),Float64(size(training_data,2))), p = p)
-        CUDA.@allowscalar convert(CuArray,solve(_prob, AutoTsit5(Rosenbrock23()), saveat = 1.,
+        _prob = remake(prob_nn, u0 = X, tspan = (Float64(0),7*(Float64(size(training_data,2))-1)), p = p)
+        CUDA.@allowscalar convert(CuArray,solve(_prob, AutoTsit5(Rosenbrock23()), saveat = 7.,
                 abstol=1e-6, reltol=1e-6
                 ))
     end
@@ -162,8 +162,8 @@ function testUDEModel(params,neuralNetwork,knownDynamics,x0,T;p_true = nothing)
     # Closure with the known parameter
     nn_dynamics(u,p,t) = ude(u,p,t,p_true)
     # Define the problem
-    prob_nn = ODEProblem(nn_dynamics,Lux.gpu(x0), (Float64(0),Float64(T)), params)
-    prediction = Array(solve(prob_nn, AutoTsit5(Rosenbrock23()), saveat = 1,
+    prob_nn = ODEProblem(nn_dynamics,Lux.gpu(x0), (Float64(0),Float64(T)*7), params)
+    prediction = Array(solve(prob_nn, AutoTsit5(Rosenbrock23()), saveat = 7,
                 abstol=1e-6, reltol=1e-6
                 ))
     return prediction

@@ -6,7 +6,7 @@ include("dataGeneration.jl")
 communitySizes = [10,40]
 observationErrors = [0,1e-2,1e-1]
 numberofTimeSeries = 2
-trainingSizes = [10, 30, 50, 100]
+trainingSizes = [30, 50, 100]
 initialWeightsNumber = 4
 Tmax = 100
 
@@ -21,13 +21,13 @@ Tmax = 100
                     string(observationError)*"_trainingSize_"*string(trainingSize)*"_rep_"*string(i)*"_"*string(j)*".jls") && continue
             #Training of models
             NODENonAutonomous = denseLayersLux(communitySize+1,communitySize*2)
-            trainedParamsNODENonAutonomous = trainNODEModel(NODENonAutonomous,[timeSeries[:,1:trainingSize];collect(1:trainingSize)'])
+            trainedParamsNODENonAutonomous = trainNODEModel(NODENonAutonomous,[timeSeries[:,1:trainingSize];mod.(collect(1:7:trainingSize*7),365)'/365])
             saveNeuralNetwork(NODE(NODENonAutonomous,trainedParamsNODENonAutonomous),
                 fileName="Models/nonautonomous_NODE_communitySize_"*string(communitySize)*"_observationError_"*
                     string(observationError)*"_trainingSize_"*string(trainingSize)*"_rep_"*string(i)*"_"*string(j))
 
             #Testing of models
-            NODENonAutonomousTest = testNODEModel(trainedParamsNODENonAutonomous,NODENonAutonomous,[timeSeries[:,(trainingSize)];trainingSize],50)
+            NODENonAutonomousTest = testNODEModel(trainedParamsNODENonAutonomous,NODENonAutonomous,[timeSeries[:,(trainingSize)];trainingSize/365],30)
             CUDA.@allowscalar writedlm("Results/test_nonautonomous_NODE_communitySize_"*string(communitySize)*"_observationError_"*
                 string(observationError)*"_trainingSize_"*string(trainingSize)*"_rep_"*string(i)*"_"*string(j)*".csv",NODENonAutonomousTest)
             
