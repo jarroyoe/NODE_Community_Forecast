@@ -19,23 +19,34 @@ library(broom)
 library(scales)
 load("test_predictions_and_residuals.RData")
 load("null_test_predictions_and_residuals.RData")
-
+load("EDM_test_predictions_and_residuals.RData")
+load("lstm_test_predictions_and_residuals.RData")
 ```
 
 #Choose a time series and process it
 ```{r}
-allPredictions <- testPredictions %>% full_join(ARIMAPredictions %>% mutate(ModelType = "ARIMA",ArchitectureType = "ARIMA",RepNumber = 1))
+allPredictions <- testPredictions %>% full_join(ARIMAPredictions %>% mutate(ModelType = "ARIMA",ArchitectureType = "ARIMA",RepNumber = 1)) %>% full_join(LSTMPredictions %>% mutate(ModelType = "LSTM",ArchitectureType = "LSTM",RepNumber = 1)) %>% full_join(EDMPredictions %>% mutate(ModelType = "EDM",ArchitectureType = "EDM",RepNumber = 1))
 
 selectedCommunitySize = 10
 selectedObservationError = 0
-selectedTimeSeriesID = 1
+selectedTimeSeriesID = 2
 
 selectedTimeSeries <- allPredictions %>% filter(CommunitySize == selectedCommunitySize, ObservationError == selectedObservationError,TimeSeriesID == selectedTimeSeriesID) %>% group_by(ModelType,ArchitectureType,TrainingSize,Time,PopID) %>% summarise(RealValue = RealValue,MeanPrediction = mean(LogDensity),SEPrediction = sd(LogDensity)/sqrt(n())) %>% mutate(Lower95 = MeanPrediction - 1.96*SEPrediction, Higher95 = MeanPrediction + 1.96*SEPrediction) %>% select(-SEPrediction) %>% arrange(TrainingSize,PopID,Time)
 
 selectedARIMA <- ARIMAPredictionsSD %>% mutate(ModelType = "ARIMA",ArchitectureType = "ARIMA") %>%  group_by(ModelType,ArchitectureType,TrainingSize,Time,PopID) %>% filter(CommunitySize == selectedCommunitySize, ObservationError == selectedObservationError,TimeSeriesID == selectedTimeSeriesID) %>% select(-CommunitySize,-ObservationError,-TimeSeriesID) %>% arrange(TrainingSize,PopID,Time)
 
+selectedLSTM <- LSTMPredictionsSD %>% mutate(ModelType = "LSTM",ArchitectureType = "LSTM") %>%  group_by(ModelType,ArchitectureType,TrainingSize,Time,PopID) %>% filter(CommunitySize == selectedCommunitySize, ObservationError == selectedObservationError,TimeSeriesID == selectedTimeSeriesID) %>% select(-CommunitySize,-ObservationError,-TimeSeriesID) %>% arrange(TrainingSize,PopID,Time)
+
+selectedEDM <- EDMPredictionsSD %>% mutate(ModelType = "EDM",ArchitectureType = "EDM") %>%  group_by(ModelType,ArchitectureType,TrainingSize,Time,PopID) %>% filter(CommunitySize == selectedCommunitySize, ObservationError == selectedObservationError,TimeSeriesID == selectedTimeSeriesID) %>% select(-CommunitySize,-ObservationError,-TimeSeriesID) %>% arrange(TrainingSize,PopID,Time)
+
 selectedTimeSeries[selectedTimeSeries$ModelType == "ARIMA",8] = selectedARIMA$Lower95
 selectedTimeSeries[selectedTimeSeries$ModelType == "ARIMA",9] = selectedARIMA$Higher95
+
+selectedTimeSeries[selectedTimeSeries$ModelType == "LSTM",8] = selectedLSTM$Lower95
+selectedTimeSeries[selectedTimeSeries$ModelType == "LSTM",9] = selectedLSTM$Higher95
+
+selectedTimeSeries[selectedTimeSeries$ModelType == "EDM",8] = selectedEDM$Lower95
+selectedTimeSeries[selectedTimeSeries$ModelType == "EDM",9] = selectedEDM$Higher95
 
 selectedTimeSeries <- selectedTimeSeries %>% filter(Time<=TrainingSize+20,Time!=TrainingSize)
 ```
@@ -43,9 +54,9 @@ selectedTimeSeries <- selectedTimeSeries %>% filter(Time<=TrainingSize+20,Time!=
 #Make time series plot for each different model with 30 training size
 ```{r}
 chosenTrainingSize = 30
-realTimeSeries <- read.csv(paste(sep="",paste(sep="_","../Data/timeSeries_communitySize",selectedCommunitySize,"observationError","0.0","rep",selectedTimeSeriesID),".csv"),header=FALSE,sep='\t')[,1:(chosenTrainingSize+20)]
+realTimeSeries <- read.csv(paste(sep="",paste(sep="_","../Data/timeSeries_communitySize",selectedCommunitySize,"observationError","0.0","rep",selectedTimeSeriesID),".csv"),sep='\t',header=FALSE)[,(chosenTrainingSize-20):(chosenTrainingSize+20)]
 
-realTimeSeries <- data.frame(Time = rep(1:(chosenTrainingSize+20),selectedCommunitySize),PopID = rep(1:selectedCommunitySize,each = 50),RealValue = as.vector(t(realTimeSeries)))
+realTimeSeries <- data.frame(Time = rep((chosenTrainingSize-20):(chosenTrainingSize+20),selectedCommunitySize),PopID = rep(1:selectedCommunitySize,each = 41),RealValue = as.vector(t(realTimeSeries)))
 
 samplePopulations <- c(2,3,6,9)
 realTimeSeries <- realTimeSeries %>% filter(PopID %in%(samplePopulations)) %>% mutate(RealValue = RealValue)
@@ -115,5 +126,8 @@ timeSeriesSpread %>% mutate(ForecastHorizon = Time-TrainingSize) %>% filter(Fore
 timeSeriesSpread %>% mutate(ForecastHorizon = Time-TrainingSize) %>% filter(ForecastHorizon>0) %>%  ggplot(aes(ForecastHorizon,Spread,color=ModelType)) + geom_point(position=position_dodge(width=0.9),size=2)+scale_y_continuous(trans='log10',
                      breaks=trans_breaks('log10', function(x) 10^x),
                      labels=trans_format('log10', math_format(10^.x)))+labs(x="Forecasting Horizon",y="Size of Confidence Interval",color="Model Type") + theme_bw() + theme(text = element_text(size=22))
+timeSeriesSpread %>% mutate(ForecastHorizon = Time-TrainingSize) %>% filter(ForecastHorizon>0) %>%  ggplot(aes(ForecastHorizon,Spread,color=ArchitectureType,shape=TrainingSize)) + geom_point(position=position_dodge(width=0.9),size=2)+scale_y_continuous(trans='log10',
+                     breaks=trans_breaks('log10', function(x) 10^x),
+                     labels=trans_format('log10', math_format(10^.x)))+labs(x="Forecasting Horizon",y="Size of Confidence Interval",color="Architecture Type") + theme_bw() + theme(text = element_text(size=22))
 ```
 
