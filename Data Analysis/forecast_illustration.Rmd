@@ -29,7 +29,7 @@ allPredictions <- testPredictions %>% full_join(ARIMAPredictions %>% mutate(Mode
 
 selectedCommunitySize = 10
 selectedObservationError = 0
-selectedTimeSeriesID = 2
+selectedTimeSeriesID = 1
 
 selectedTimeSeries <- allPredictions %>% filter(CommunitySize == selectedCommunitySize, ObservationError == selectedObservationError,TimeSeriesID == selectedTimeSeriesID) %>% group_by(ModelType,ArchitectureType,TrainingSize,Time,PopID) %>% summarise(RealValue = RealValue,MeanPrediction = mean(LogDensity),SEPrediction = sd(LogDensity)/sqrt(n())) %>% mutate(Lower95 = MeanPrediction - 1.96*SEPrediction, Higher95 = MeanPrediction + 1.96*SEPrediction) %>% select(-SEPrediction) %>% arrange(TrainingSize,PopID,Time)
 
@@ -53,7 +53,7 @@ selectedTimeSeries <- selectedTimeSeries %>% filter(Time<=TrainingSize+20,Time!=
 
 #Make time series plot for each different model with 30 training size
 ```{r}
-chosenTrainingSize = 30
+chosenTrainingSize = 50
 realTimeSeries <- read.csv(paste(sep="",paste(sep="_","../Data/timeSeries_communitySize",selectedCommunitySize,"observationError","0.0","rep",selectedTimeSeriesID),".csv"),sep='\t',header=FALSE)[,(chosenTrainingSize-20):(chosenTrainingSize+20)]
 
 realTimeSeries <- data.frame(Time = rep((chosenTrainingSize-20):(chosenTrainingSize+20),selectedCommunitySize),PopID = rep(1:selectedCommunitySize,each = 41),RealValue = as.vector(t(realTimeSeries)))
