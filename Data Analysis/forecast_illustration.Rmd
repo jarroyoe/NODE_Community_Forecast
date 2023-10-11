@@ -53,7 +53,7 @@ selectedTimeSeries <- selectedTimeSeries %>% filter(Time<=TrainingSize+20,Time!=
 
 #Make time series plot for each different model with 30 training size
 ```{r}
-chosenTrainingSize = 50
+chosenTrainingSize = 30
 realTimeSeries <- read.csv(paste(sep="",paste(sep="_","../Data/timeSeries_communitySize",selectedCommunitySize,"observationError","0.0","rep",selectedTimeSeriesID),".csv"),sep='\t',header=FALSE)[,(chosenTrainingSize-20):(chosenTrainingSize+20)]
 
 realTimeSeries <- data.frame(Time = rep((chosenTrainingSize-20):(chosenTrainingSize+20),selectedCommunitySize),PopID = rep(1:selectedCommunitySize,each = 41),RealValue = as.vector(t(realTimeSeries)))
@@ -68,15 +68,19 @@ selectedTimeSeries$PopID <- as.factor(selectedTimeSeries$PopID)
 ```{r}
 p1 <- ggplot(realTimeSeries,aes(Time,RealValue),fill=(PopID))+geom_point(aes(colour=(PopID)))+ geom_line(data=selectedTimeSeries %>% filter(ModelType == "ARIMA",TrainingSize == chosenTrainingSize),aes(Time,MeanPrediction,color=(PopID))) + geom_ribbon(data = selectedTimeSeries %>% filter(ModelType == "ARIMA",TrainingSize == chosenTrainingSize)%>% mutate(Lower95 = max(-10,Lower95),Higher95 = min(10,Higher95)),aes(ymin = Lower95, ymax = Higher95,fill = (PopID)),alpha = 0.2) + ggtitle("ARIMA") + ylab("Population Log Density") +theme_bw()+ theme(text = element_text(size=14))+ ylim(-10,10)
 
-p2 <- ggplot(realTimeSeries,aes(Time,RealValue,fill=(PopID)))+geom_point(aes(colour=(PopID)))+ geom_line(data=selectedTimeSeries %>% filter(ModelType == "Time Aware",ArchitectureType == "NODE",TrainingSize == chosenTrainingSize),aes(Time,MeanPrediction,color=(PopID))) + geom_ribbon(data = selectedTimeSeries %>% filter(ModelType == "Time Aware",ArchitectureType == "NODE",TrainingSize == chosenTrainingSize)%>% mutate(Lower95 = max(-10,Lower95),Higher95 = min(10,Higher95)),aes(ymin = Lower95, ymax = Higher95,group = (PopID)),alpha = 0.2) + ggtitle("Time Aware NODE") + ylab("Population Log Density")+ theme_bw()+theme(text = element_text(size=14))+ ylim(-10,10)
+p2 <- ggplot(realTimeSeries,aes(Time,RealValue,fill=(PopID)))+geom_point(aes(colour=(PopID)))+ geom_line(data=selectedTimeSeries %>% filter(ModelType == "LSTM",ArchitectureType == "LSTM",TrainingSize == chosenTrainingSize),aes(Time,MeanPrediction,color=(PopID))) + geom_ribbon(data = selectedTimeSeries %>% filter(ModelType == "LSTM",ArchitectureType == "LSTM",TrainingSize == chosenTrainingSize)%>% mutate(Lower95 = max(-10,Lower95),Higher95 = min(10,Higher95)),aes(ymin = Lower95, ymax = Higher95,group = (PopID)),alpha = 0.2) + ggtitle("LSTM") + ylab("Population Log Density")+ theme_bw()+theme(text = element_text(size=14))+ ylim(-10,10)
 
-p3 <- ggplot(realTimeSeries,aes(Time,RealValue,fill=(PopID)))+geom_point(aes(colour=(PopID)))+ geom_line(data=selectedTimeSeries %>% filter(ModelType == "Time Agnostic",ArchitectureType == "NODE",TrainingSize == chosenTrainingSize),aes(Time,MeanPrediction,color=(PopID))) + geom_ribbon(data = selectedTimeSeries %>% filter(ModelType == "Time Agnostic",ArchitectureType == "NODE",TrainingSize == chosenTrainingSize)%>% mutate(Lower95 = max(-10,Lower95),Higher95 = min(10,Higher95)),aes(ymin = Lower95, ymax = Higher95,group = (PopID)),alpha = 0.2) + ggtitle("Time Agnostic NODE") + ylab("Population Log Density")+ theme_bw()+theme(text = element_text(size=14))+ ylim(-10,10)
+p3 <- ggplot(realTimeSeries,aes(Time,RealValue,fill=(PopID)))+geom_point(aes(colour=(PopID)))+ geom_line(data=selectedTimeSeries %>% filter(ModelType == "EDM",ArchitectureType == "EDM",TrainingSize == chosenTrainingSize),aes(Time,MeanPrediction,color=(PopID))) + geom_ribbon(data = selectedTimeSeries %>% filter(ModelType == "EDM",ArchitectureType == "EDM",TrainingSize == chosenTrainingSize)%>% mutate(Lower95 = max(-10,Lower95),Higher95 = min(10,Higher95)),aes(ymin = Lower95, ymax = Higher95,group = (PopID)),alpha = 0.2) + ggtitle("EDM") + ylab("Population Log Density")+ theme_bw()+theme(text = element_text(size=14))+ ylim(-10,10)
 
-p4 <- ggplot(realTimeSeries,aes(Time,RealValue,fill=(PopID)))+geom_point(aes(colour=(PopID)))+ geom_line(data=selectedTimeSeries %>% filter(ModelType == "Time Aware",ArchitectureType == "UDE",TrainingSize == chosenTrainingSize),aes(Time,MeanPrediction,color=(PopID))) + geom_ribbon(data = selectedTimeSeries %>% filter(ModelType == "Time Aware",ArchitectureType == "UDE",TrainingSize == chosenTrainingSize)%>% mutate(Lower95 = max(-10,Lower95),Higher95 = min(10,Higher95)),aes(ymin = Lower95, ymax = Higher95,group = (PopID)),alpha = 0.2) + ggtitle("Time Aware UDE") + ylab("Population Log Density")+theme_bw()+ theme(text = element_text(size=14))+ ylim(-10,10)
+p4 <- ggplot(realTimeSeries,aes(Time,RealValue,fill=(PopID)))+geom_point(aes(colour=(PopID)))+ geom_line(data=selectedTimeSeries %>% filter(ModelType == "Time Aware",ArchitectureType == "NODE",TrainingSize == chosenTrainingSize),aes(Time,MeanPrediction,color=(PopID))) + geom_ribbon(data = selectedTimeSeries %>% filter(ModelType == "Time Aware",ArchitectureType == "NODE",TrainingSize == chosenTrainingSize)%>% mutate(Lower95 = max(-10,Lower95),Higher95 = min(10,Higher95)),aes(ymin = Lower95, ymax = Higher95,group = (PopID)),alpha = 0.2) + ggtitle("Time Aware NODE") + ylab("Population Log Density")+ theme_bw()+theme(text = element_text(size=14))+ ylim(-10,10)
 
-p5 <- ggplot(realTimeSeries,aes(Time,RealValue,fill=(PopID)))+geom_point(aes(colour=(PopID)))+ geom_line(data=selectedTimeSeries %>% filter(ModelType == "Time Agnostic",ArchitectureType == "UDE",TrainingSize == chosenTrainingSize),aes(Time,MeanPrediction,color=(PopID))) + geom_ribbon(data = selectedTimeSeries %>% filter(ModelType == "Time Agnostic",ArchitectureType == "UDE",TrainingSize == chosenTrainingSize) %>% mutate(Lower95 = max(-10,Lower95),Higher95 = min(10,Higher95)),aes(ymin = Lower95, ymax = Higher95,group = (PopID)),alpha = 0.2) + ggtitle("Time Agnostic UDE") + theme_bw() + ylab("Population Log Density")+ theme(text = element_text(size=14)) + ylim(-10,10)
+p5 <- ggplot(realTimeSeries,aes(Time,RealValue,fill=(PopID)))+geom_point(aes(colour=(PopID)))+ geom_line(data=selectedTimeSeries %>% filter(ModelType == "Time Agnostic",ArchitectureType == "NODE",TrainingSize == chosenTrainingSize),aes(Time,MeanPrediction,color=(PopID))) + geom_ribbon(data = selectedTimeSeries %>% filter(ModelType == "Time Agnostic",ArchitectureType == "NODE",TrainingSize == chosenTrainingSize)%>% mutate(Lower95 = max(-10,Lower95),Higher95 = min(10,Higher95)),aes(ymin = Lower95, ymax = Higher95,group = (PopID)),alpha = 0.2) + ggtitle("Time Agnostic NODE") + ylab("Population Log Density")+ theme_bw()+theme(text = element_text(size=14))+ ylim(-10,10)
 
-ggarrange(p1,p2,p3,p4,p5,common.legend = TRUE,legend='none')
+p6 <- ggplot(realTimeSeries,aes(Time,RealValue,fill=(PopID)))+geom_point(aes(colour=(PopID)))+ geom_line(data=selectedTimeSeries %>% filter(ModelType == "Time Aware",ArchitectureType == "UDE",TrainingSize == chosenTrainingSize),aes(Time,MeanPrediction,color=(PopID))) + geom_ribbon(data = selectedTimeSeries %>% filter(ModelType == "Time Aware",ArchitectureType == "UDE",TrainingSize == chosenTrainingSize)%>% mutate(Lower95 = max(-10,Lower95),Higher95 = min(10,Higher95)),aes(ymin = Lower95, ymax = Higher95,group = (PopID)),alpha = 0.2) + ggtitle("Time Aware UDE") + ylab("Population Log Density")+theme_bw()+ theme(text = element_text(size=14))+ ylim(-10,10)
+
+p7 <- ggplot(realTimeSeries,aes(Time,RealValue,fill=(PopID)))+geom_point(aes(colour=(PopID)))+ geom_line(data=selectedTimeSeries %>% filter(ModelType == "Time Agnostic",ArchitectureType == "UDE",TrainingSize == chosenTrainingSize),aes(Time,MeanPrediction,color=(PopID))) + geom_ribbon(data = selectedTimeSeries %>% filter(ModelType == "Time Agnostic",ArchitectureType == "UDE",TrainingSize == chosenTrainingSize) %>% mutate(Lower95 = max(-10,Lower95),Higher95 = min(10,Higher95)),aes(ymin = Lower95, ymax = Higher95,group = (PopID)),alpha = 0.2) + ggtitle("Time Agnostic UDE") + theme_bw() + ylab("Population Log Density")+ theme(text = element_text(size=14)) + ylim(-10,10)
+
+ggarrange(p1,p2,p3,p4,p5,p6,p7,common.legend = TRUE,legend='none')
 ```   
 
 #Uncertainty spread seems to be terrible on ARIMA
@@ -86,14 +90,24 @@ timeSeriesSpread <- allPredictions %>% filter(Time<=TrainingSize+20) %>% group_b
 
 selectedARIMA <- ARIMAPredictionsSD %>% mutate(ModelType = "ARIMA",ArchitectureType = "ARIMA") %>% filter(Time<=TrainingSize+20) %>%  group_by(CommunitySize,ObservationError,ModelType,ArchitectureType,TrainingSize,Time,PopID) %>% select(-CommunitySize,-ObservationError,-TimeSeriesID) %>% arrange(TrainingSize,PopID,Time)
 
+selectedLSTM <- LSTMPredictionsSD %>% mutate(ModelType = "LSTM",ArchitectureType = "LSTM") %>% filter(Time<=TrainingSize+20) %>%  group_by(CommunitySize,ObservationError,ModelType,ArchitectureType,TrainingSize,Time,PopID) %>% select(-CommunitySize,-ObservationError,-TimeSeriesID) %>% arrange(TrainingSize,PopID,Time)
+
+selectedEDM <- EDMPredictionsSD %>% mutate(ModelType = "EDM",ArchitectureType = "EDM") %>% filter(Time<=TrainingSize+20) %>%  group_by(CommunitySize,ObservationError,ModelType,ArchitectureType,TrainingSize,Time,PopID) %>% select(-CommunitySize,-ObservationError,-TimeSeriesID) %>% arrange(TrainingSize,PopID,Time)
+
 timeSeriesSpread[timeSeriesSpread$ModelType == "ARIMA",10] = selectedARIMA$Lower95
 timeSeriesSpread[timeSeriesSpread$ModelType == "ARIMA",11] = selectedARIMA$Higher95
+
+timeSeriesSpread[timeSeriesSpread$ModelType == "LSTM",10] = selectedLSTM$Lower95
+timeSeriesSpread[timeSeriesSpread$ModelType == "LSTM",11] = selectedLSTM$Higher95
+
+timeSeriesSpread[timeSeriesSpread$ModelType == "EDM",10] = selectedEDM$Lower95
+timeSeriesSpread[timeSeriesSpread$ModelType == "EDM",11] = selectedEDM$Higher95
 
 timeSeriesSpread <- timeSeriesSpread %>% mutate(Spread = Higher95-Lower95) %>% mutate(CV = abs(Spread/MeanPrediction))
 
 timeSeriesSpread %>% lm(Spread~ModelType+ArchitectureType+TrainingSize+CommunitySize+ObservationError, data = .) %>% 
   aov() %>% tidy() %>% mutate(contribution = sumsq/sum(sumsq)) %>% filter(term != "Residuals") %>% ggplot(aes(reorder(term,contribution),contribution* 100,fill=term)) +
-  geom_bar(stat='identity') + xlab("Variable") + ylab("Contribution to variation (%)") + theme_bw() + ylim(0,11) + labs(fill = "Term") + theme(text=element_text(size=20))
+  geom_bar(stat='identity') + xlab("Variable") + ylab("Contribution to variation (%)") + theme_bw() + ylim(0,15) + labs(fill = "Term") + theme(text=element_text(size=20))
 ```
 ```{r}
 timeSeriesSpread %>% ggplot(aes(ModelType,Spread,fill = ModelType))+geom_violin() + theme_bw() + xlab("Model Type") + ylab("Size of Confidence Intervals") +    scale_y_continuous(trans='log10',
@@ -126,7 +140,7 @@ timeSeriesSpread %>% mutate(ForecastHorizon = Time-TrainingSize) %>% filter(Fore
 timeSeriesSpread %>% mutate(ForecastHorizon = Time-TrainingSize) %>% filter(ForecastHorizon>0) %>%  ggplot(aes(ForecastHorizon,Spread,color=ModelType)) + geom_point(position=position_dodge(width=0.9),size=2)+scale_y_continuous(trans='log10',
                      breaks=trans_breaks('log10', function(x) 10^x),
                      labels=trans_format('log10', math_format(10^.x)))+labs(x="Forecasting Horizon",y="Size of Confidence Interval",color="Model Type") + theme_bw() + theme(text = element_text(size=22))
-timeSeriesSpread %>% mutate(ForecastHorizon = Time-TrainingSize) %>% filter(ForecastHorizon>0) %>%  ggplot(aes(ForecastHorizon,Spread,color=ArchitectureType,shape=TrainingSize)) + geom_point(position=position_dodge(width=0.9),size=2)+scale_y_continuous(trans='log10',
+timeSeriesSpread %>% mutate(ForecastHorizon = Time-TrainingSize) %>% filter(ForecastHorizon>0,TrainingSize<100) %>%  group_by(ArchitectureType,ForecastHorizon,TrainingSize) %>% summarise(MeanSpread=10^mean(log10(Spread)),SESpread=10^sd(log10(Spread))/sqrt(n())) %>%  ggplot(aes(ForecastHorizon,MeanSpread,color=ArchitectureType,shape=as.factor(TrainingSize))) + geom_point(position=position_dodge(width=0.9),size=2)+scale_y_continuous(trans='log10',
                      breaks=trans_breaks('log10', function(x) 10^x),
                      labels=trans_format('log10', math_format(10^.x)))+labs(x="Forecasting Horizon",y="Size of Confidence Interval",color="Architecture Type") + theme_bw() + theme(text = element_text(size=22))
 ```
