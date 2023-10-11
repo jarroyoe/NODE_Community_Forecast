@@ -65,10 +65,12 @@ LSTMPredictionsSD <- data.frame(CommunitySize = integer(),
 for(i in communitySizes){
   for(j in observationErrors){
         for(n in 1:2){
-          currTimeSeries <- read.csv(paste(sep="",
+	  print(paste("Testing",i,j,n))
+          currTimeSeries <- tryCatch(read.csv(paste(sep="",
                                            paste(sep="_","Data/timeSeries_communitySize",i,
                                                  "observationError",j,"rep",n),".csv"),
-                                     header=FALSE,sep='\t')
+                                     header=FALSE,sep='\t'),
+				     error=function(e){next})
           for(k in trainingSizes){
             for(m in 1:i){
               supervisedTS <-  lag_transform(t(currTimeSeries[m,]), 1)
@@ -95,7 +97,7 @@ for(i in communitySizes){
                   metrics = c('accuracy')
                 )
                 
-                for(i in 1:Epochs){
+                for(h in 1:Epochs){
                   model %>% fit(x_train, y_train, epochs=1, batch_size=batch_size, verbose=1, shuffle=FALSE)
                   model %>% reset_states()
                 }
@@ -119,8 +121,8 @@ for(i in communitySizes){
                 LSTMForecast[l,] <- scaledPredictions
               }
               predictions <- apply(LSTMForecast,2,mean)
-              low95 <- predictions - 1.96*apply(LSTMForecast,2,sd)/4
-              hi95 <- predictions + 1.96*apply(LSTMForecast,2,sd)/4
+              low95 <- predictions - 1.96*apply(LSTMForecast,2,sd)/2
+              hi95 <- predictions + 1.96*apply(LSTMForecast,2,sd)/2
               totalEntries <- length(predictions)
               LSTMPredictions <- rbind(LSTMPredictions,
                                         data.frame(CommunitySize = rep(i,totalEntries),
