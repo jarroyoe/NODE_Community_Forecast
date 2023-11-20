@@ -18,27 +18,29 @@ library(dplyr)
 library(broom)
 load("test_predictions_and_residuals.RData")
 load("null_test_predictions_and_residuals.RData")
+load("EDM_test_predictions_and_residuals.RData")
+load("lstm_test_predictions_and_residuals.RData")
 ```
 
 #Data processing
 ```{r,warning=FALSE}
-allPredictions <- testPredictions %>% full_join(ARIMAPredictions %>% mutate(ModelType = "ARIMA",ArchitectureType = "ARIMA",RepNumber = 1))
+allPredictions <- testPredictions  %>%  full_join(ARIMAPredictions %>% mutate(ModelType = "Time Agnostic",ArchitectureType = "ARIMA",RepNumber = 1)) %>% full_join(LSTMPredictions %>% mutate(ModelType = "Time Agnostic",ArchitectureType = "LSTM",RepNumber = 1)) %>% full_join(EDMPredictions %>% mutate(ModelType = "Time Agnostic",ArchitectureType = "EDM",RepNumber = 1))%>% filter(TrainingSize<100)
 
-RMSEs <- allPredictions %>% filter(Time<=TrainingSize+10) %>% group_by(ModelType,ArchitectureType,CommunitySize,ObservationError,TrainingSize,TimeSeriesID,RepNumber) %>% summarise(RMSE = sqrt(sum(Residuals^2)),NRMSE = RMSE/(max(RealValue)-min(RealValue)))
+RMSEs <- allPredictions %>% filter(Time<=TrainingSize+10) %>% group_by(ModelType,ArchitectureType,CommunitySize,ObservationError,TrainingSize,TimeSeriesID,Time,PopID) %>% summarise(MeanLogDensity = mean(LogDensity),RealValue = mean(RealValue),Residuals = RealValue-MeanLogDensity) %>% group_by(ModelType,ArchitectureType,CommunitySize,ObservationError,TrainingSize) %>%  summarise(RMSE = sqrt(sum(Residuals^2)),NRMSE = RMSE/(max(RealValue)-min(RealValue)))
 
-finalCommunitySizes <- allPredictions %>% group_by(ModelType,ArchitectureType,CommunitySize,ObservationError,TrainingSize,TimeSeriesID,RepNumber,PopID) %>% summarise(PredictedatEnd = last(LogDensity)>0,atEnd = last(RealValue)>0) %>% group_by(ModelType,ArchitectureType,CommunitySize,ObservationError,TrainingSize,TimeSeriesID,RepNumber) %>% summarise(NumberPredictedAtEnd = sum(PredictedatEnd), NumberAtEnd = sum(atEnd), Deviation = (NumberAtEnd-NumberPredictedAtEnd)/NumberAtEnd)
+finalCommunitySizes <- allPredictions %>% group_by(ModelType,ArchitectureType,CommunitySize,ObservationError,TrainingSize,TimeSeriesID,PopID,Time) %>% summarise(MeanLogDensity = mean(LogDensity),RealValue = mean(RealValue)) %>%  group_by(ModelType,ArchitectureType,CommunitySize,ObservationError,TrainingSize,TimeSeriesID,PopID) %>% summarise(PredictedatEnd = last(MeanLogDensity)>0,atEnd = last(RealValue)>0) %>% group_by(ModelType,ArchitectureType,CommunitySize,ObservationError,TrainingSize,TimeSeriesID) %>% summarise(NumberPredictedAtEnd = sum(PredictedatEnd), NumberAtEnd = sum(atEnd), Factor = NumberPredictedAtEnd/NumberAtEnd)
 ```
 #ANOVA for RMSE
 ```{r}
-RMSEs %>% lm(RMSE~ModelType+ArchitectureType+CommunitySize+ObservationError+TrainingSize, data = .) %>% 
+RMSEs %>% lm(NRMSE~ModelType+ArchitectureType+CommunitySize+ObservationError+TrainingSize, data = .) %>% 
   aov() %>% tidy() %>% mutate(contribution = sumsq/sum(sumsq)) %>% filter(term != "Residuals") %>% ggplot(aes(reorder(term,contribution),contribution* 100,fill=term)) +
   geom_bar(stat='identity') + xlab("Variable") + ylab("Contribution to variation (%)") + theme_bw() +labs(fill = "Term") + theme(text=element_text(size=20))
 ```
 
 #ANOVA for final community size
 ```{r}
-finalCommunitySizes %>% lm(Deviation~ModelType+ArchitectureType+CommunitySize+ObservationError+TrainingSize, data = .) %>% 
+finalCommunitySizes %>% lm(NumberPredictedAtEnd~ModelType+ArchitectureType+CommunitySize+ObservationError+TrainingSize, data = .) %>% 
   aov() %>% tidy() %>% mutate(contribution = sumsq/sum(sumsq)) %>% filter(term != "Residuals") %>% ggplot(aes(reorder(term,contribution),contribution* 100,fill=term)) +
-  geom_bar(stat='identity') + xlab("Variable") + ylab("Contribution to variation (%)") + theme_bw() + ylim(0,11)+labs(fill = "Term") + theme(text=element_text(size=20))
+  geom_bar(stat='identity') + xlab("Variable") + ylab("Contribution to variation (%)") + theme_bw() + ylim(0,55)+labs(fill = "Term") + theme(text=element_text(size=20))
 ```
 
