@@ -16,6 +16,7 @@ library(ggplot2)
 library(dplyr)
 library(ggpubr)
 library(broom)
+library(lme4)
 library(scales)
 load("test_predictions_and_residuals.RData")
 load("null_test_predictions_and_residuals.RData")
@@ -105,8 +106,8 @@ timeSeriesSpread[timeSeriesSpread$ModelType == "EDM",11] = selectedEDM$Higher95
 
 timeSeriesSpread <- timeSeriesSpread %>% mutate(Spread = Higher95-Lower95) %>% mutate(CV = abs(Spread/MeanPrediction))
 
-timeSeriesSpread %>% lm(Spread~ModelType+ArchitectureType+TrainingSize+CommunitySize+ObservationError, data = .) %>% 
-  aov() %>% tidy() %>% mutate(contribution = sumsq/sum(sumsq)) %>% filter(term != "Residuals") %>% ggplot(aes(reorder(term,contribution),contribution* 100,fill=term)) +
+timeSeriesSpread %>% lmer(Spread~ModelType+ArchitectureType+TrainingSize+CommunitySize+ObservationError+(1|TimeSeriesID), data = .) %>% 
+  anova() %>% tidy() %>% mutate(contribution = sumsq/sum(sumsq)) %>% filter(term != "Residuals") %>% ggplot(aes(reorder(term,contribution),contribution* 100,fill=term)) +
   geom_bar(stat='identity') + xlab("Variable") + ylab("Contribution to variation (%)") + theme_bw() + ylim(0,15) + labs(fill = "Term") + theme(text=element_text(size=20))
 ```
 ```{r}
