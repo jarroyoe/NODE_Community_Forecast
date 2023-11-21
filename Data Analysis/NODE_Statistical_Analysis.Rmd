@@ -17,6 +17,7 @@ library(ggplot2)
 library(dplyr)
 library(lme4)
 library(broom)
+library(scoringutils)
 load("test_predictions_and_residuals.RData")
 load("null_test_predictions_and_residuals.RData")
 load("EDM_test_predictions_and_residuals.RData")
@@ -44,4 +45,4 @@ finalCommunitySizes %>% lmer(NumberPredictedAtEnd~ModelType+ArchitectureType+Com
   anova() %>% tidy() %>% mutate(contribution = sumsq/sum(sumsq)) %>% filter(term != "Residuals") %>% ggplot(aes(reorder(term,contribution),contribution* 100,fill=term)) +
   geom_bar(stat='identity') + xlab("Variable") + ylab("Contribution to variation (%)") + theme_bw() + ylim(0,55)+labs(fill = "Term") + theme(text=element_text(size=20))
 ```
-
+# Interval score

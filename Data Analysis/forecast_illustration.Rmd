@@ -95,14 +95,14 @@ selectedLSTM <- LSTMPredictionsSD %>% mutate(ModelType = "Time Agnostic",Archite
 
 selectedEDM <- EDMPredictionsSD %>% mutate(ModelType = "Time Agnostic",ArchitectureType = "EDM") %>% filter(Time<=TrainingSize+20) %>%  group_by(CommunitySize,ObservationError,ModelType,ArchitectureType,TrainingSize,Time,PopID,TimeSeriesID) %>% select(-CommunitySize,-ObservationError,-TimeSeriesID) %>% arrange(TrainingSize,PopID,Time)
 
-timeSeriesSpread[timeSeriesSpread$ArchitectureType == "ARIMA",10] = selectedARIMA$Lower95
-timeSeriesSpread[timeSeriesSpread$ArchitectureType == "ARIMA",11] = selectedARIMA$Higher95
+timeSeriesSpread[timeSeriesSpread$ArchitectureType == "ARIMA",11] = selectedARIMA$Lower95
+timeSeriesSpread[timeSeriesSpread$ArchitectureType == "ARIMA",12] = selectedARIMA$Higher95
 
-timeSeriesSpread[timeSeriesSpread$ArchitectureType == "LSTM",10] = selectedLSTM$Lower95
-timeSeriesSpread[timeSeriesSpread$ArchitectureType == "LSTM",11] = selectedLSTM$Higher95
+timeSeriesSpread[timeSeriesSpread$ArchitectureType == "LSTM",11] = selectedLSTM$Lower95
+timeSeriesSpread[timeSeriesSpread$ArchitectureType == "LSTM",12] = selectedLSTM$Higher95
 
-timeSeriesSpread[timeSeriesSpread$ArchitectureType == "EDM",10] = selectedEDM$Lower95
-timeSeriesSpread[timeSeriesSpread$ArchitectureType == "EDM",11] = selectedEDM$Higher95
+timeSeriesSpread[timeSeriesSpread$ArchitectureType == "EDM",11] = selectedEDM$Lower95
+timeSeriesSpread[timeSeriesSpread$ArchitectureType == "EDM",12] = selectedEDM$Higher95
 
 timeSeriesSpread <- timeSeriesSpread %>% mutate(Spread = Higher95-Lower95) %>% mutate(CV = abs(Spread/MeanPrediction))
 
@@ -148,5 +148,15 @@ timeSeriesSpread %>% mutate(ForecastHorizon = Time-TrainingSize) %>% filter(Fore
 timeSeriesSpread %>% mutate(ForecastHorizon = Time-TrainingSize) %>% filter(ForecastHorizon>0,TrainingSize<100) %>%  group_by(ModelType,ForecastHorizon) %>% summarise(MeanSpread=10^mean(log10(Spread)),SESpread=10^sd(log10(Spread))/sqrt(n()),maxSpread = max(Spread),minSpread = min(Spread)) %>%  ggplot(aes(ForecastHorizon,MeanSpread,color=ModelType)) + geom_line(position=position_dodge(width=0.9),size=1,linetype=5)+scale_y_continuous(trans='log10',
                      breaks=trans_breaks('log10', function(x) 10^x),
                      labels=trans_format('log10', math_format(10^.x)))+labs(x="Forecasting Horizon",y="Size of Confidence Interval",color="Model Type") + theme_bw() + theme(text = element_text(size=22))+geom_ribbon(aes(ForecastHorizon,ymin = minSpread, ymax = maxSpread,fill=ModelType),alpha = 0.1)+scale_fill_discrete(guide='none')
+```
+#Interval score
+```{r}
+timeSeriesSpread$IntervalScore <- interval_score(timeSeriesSpread$RealValue,timeSeriesSpread$Lower95,timeSeriesSpread$Higher95,90)
+
+timeSeriesSpread %>% group_by(ArchitectureType) %>%  mutate(meanIntervalScore = mean(IntervalScore)) %>% ggplot(aes(as.factor(ArchitectureType),(IntervalScore+1),fill=ArchitectureType)) + geom_boxplot() + theme_bw() + xlab("Architecture Type") + ylab("Interval Score") + theme(text=element_text(size=22),legend.position = 'none')+scale_y_continuous(trans='log10',breaks=trans_breaks('log10', function(x) 10^x),labels=trans_format('log10', math_format(10^.x)))
+
+timeSeriesSpread %>% lmer(IntervalScore~ModelType+ArchitectureType+TrainingSize+CommunitySize+ObservationError+(1|TimeSeriesID), data = .) %>% 
+  anova() %>% tidy() %>% mutate(contribution = sumsq/sum(sumsq)) %>% filter(term != "Residuals") %>% ggplot(aes(reorder(term,contribution),contribution* 100,fill=term)) +
+  geom_bar(stat='identity') + xlab("Variable") + ylab("Contribution to variation (%)") + theme_bw() + ylim(0,70) + labs(fill = "Term") + theme(text=element_text(size=20))
 ```
 
