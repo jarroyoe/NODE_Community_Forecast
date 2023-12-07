@@ -135,19 +135,7 @@ timeSeriesSpread %>% ggplot(aes(ArchitectureType,Spread,fill = ArchitectureType)
 ```
 ```{r}
 #Time series of size of confidence intervals
-timeSeriesSpread %>% mutate(ForecastHorizon = Time-TrainingSize) %>% filter(ForecastHorizon>0) %>%  ggplot(aes(ForecastHorizon,Spread,color=ArchitectureType)) + geom_point(position=position_dodge(width=0.9),size=2)+scale_y_continuous(trans='log10',
-                     breaks=trans_breaks('log10', function(x) 10^x),
-                     labels=trans_format('log10', math_format(10^.x)))+labs(x="Forecasting Horizon",y="Size of Confidence Interval",color="Architecture Type") + theme_bw() + theme(text = element_text(size=22))
-timeSeriesSpread %>% mutate(ForecastHorizon = Time-TrainingSize) %>% filter(ForecastHorizon>0) %>%  ggplot(aes(ForecastHorizon,Spread,color=ModelType)) + geom_point(position=position_dodge(width=0.9),size=2)+scale_y_continuous(trans='log10',
-                     breaks=trans_breaks('log10', function(x) 10^x),
-                     labels=trans_format('log10', math_format(10^.x)))+labs(x="Forecasting Horizon",y="Size of Confidence Interval",color="Model Type") + theme_bw() + theme(text = element_text(size=22))
-timeSeriesSpread %>% mutate(ForecastHorizon = Time-TrainingSize) %>% filter(ForecastHorizon>0,TrainingSize<100) %>%  group_by(ArchitectureType,ForecastHorizon) %>% summarise(MeanSpread=10^mean(log10(Spread)),SESpread=10^sd(log10(Spread))/sqrt(n()),maxSpread = max(Spread),minSpread = min(Spread)) %>%  ggplot(aes(ForecastHorizon,MeanSpread,color=ArchitectureType)) + geom_line(position=position_dodge(width=0.9),size=1,linetype=5)+scale_y_continuous(trans='log10',
-                     breaks=trans_breaks('log10', function(x) 10^x),
-                     labels=trans_format('log10', math_format(10^.x)))+labs(x="Forecasting Horizon",y="Size of Confidence Interval",color="Architecture Type") + theme_bw() + theme(text = element_text(size=22))+geom_ribbon(aes(ForecastHorizon,ymin = minSpread, ymax = maxSpread,fill=ArchitectureType),alpha = 0.1)+scale_fill_discrete(guide='none')
-
-timeSeriesSpread %>% mutate(ForecastHorizon = Time-TrainingSize) %>% filter(ForecastHorizon>0,TrainingSize<100) %>%  group_by(ModelType,ForecastHorizon) %>% summarise(MeanSpread=10^mean(log10(Spread)),SESpread=10^sd(log10(Spread))/sqrt(n()),maxSpread = max(Spread),minSpread = min(Spread)) %>%  ggplot(aes(ForecastHorizon,MeanSpread,color=ModelType)) + geom_line(position=position_dodge(width=0.9),size=1,linetype=5)+scale_y_continuous(trans='log10',
-                     breaks=trans_breaks('log10', function(x) 10^x),
-                     labels=trans_format('log10', math_format(10^.x)))+labs(x="Forecasting Horizon",y="Size of Confidence Interval",color="Model Type") + theme_bw() + theme(text = element_text(size=22))+geom_ribbon(aes(ForecastHorizon,ymin = minSpread, ymax = maxSpread,fill=ModelType),alpha = 0.1)+scale_fill_discrete(guide='none')
+timeSeriesSpread %>% mutate(ForecastHorizon = Time-TrainingSize) %>% filter(ForecastHorizon>0,TrainingSize<100) %>%  group_by(ArchitectureType,ForecastHorizon) %>% summarise(maxSpread = max(Spread),minSpread = min(Spread)) %>% melt(id=c("ArchitectureType","ForecastHorizon")) %>%  ggplot(aes(ForecastHorizon,value,color=ArchitectureType,fill=variable)) + geom_line(size=2)+scale_y_continuous(trans='log10',breaks=trans_breaks('log10', function(x) 10^x),labels=trans_format('log10', math_format(10^.x)))+labs(x="Forecasting Horizon",y="Size of Confidence Interval",color="Architecture Type") + theme_bw() + theme(text = element_text(size=22))
 ```
 #Interval score
 ```{r}
