@@ -11,7 +11,7 @@ initialWeightsNumber = 4
 Tmax = 100
 
 #Run NODEs
-@floop for (communitySize,observationError,trainingSize) in Iterators.product(communitySizes,observationErrors,trainingSizes)
+for (communitySize,observationError,trainingSize) in Iterators.product(communitySizes,observationErrors,trainingSizes)
     for i in 3:numberofTimeSeries
         timeSeries = Float32.(readdlm("Data/timeSeries_communitySize_"*string(communitySize)*"_observationError_"*
         string(observationError)*"_rep_"*string(i)*".csv"))

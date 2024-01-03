@@ -1,6 +1,6 @@
-using OrdinaryDiffEq, ModelingToolkit, DataDrivenDiffEq, SciMLSensitivity, DataDrivenSparse, DiffEqFlux
+using OrdinaryDiffEq, DiffEqFlux
 using Optimization, OptimizationOptimisers, OptimizationOptimJL
-using ComponentArrays, Lux, Zygote, Plots, Random, StatsBase, LinearAlgebra
+using ComponentArrays, Lux, Zygote, Random, LinearAlgebra
 using CUDA
 using DelimitedFiles, Serialization
 rng = Random.default_rng()
@@ -81,27 +81,30 @@ end
 
 function trainUDEModel(neuralNetwork,knownDynamics,training_data;needed_ps = Float64[],p_true = Float64[])
     pinit, st = Lux.setup(rng,neuralNetwork)
-    st = st |> Lux.gpu
-    p64 = Float64.(Lux.gpu(ComponentArray(pinit)))
-    training_data = Lux.gpu(training_data)
-    x0 = training_data[:,1] |> Lux.gpu
+    #st = st |> Lux.gpu
+    #p64 = Float64.(Lux.gpu(ComponentArray(pinit)))
+    #training_data = Float64.(Lux.gpu(training_data))
+    #x0 = Float64.(Lux.gpu(training_data[:,1]))
+    p64 = Float64.(ComponentArray(pinit))
+    x0 = Float64.(training_data[:,1])
 
-   function ude(u,p,t,q)
+
+   function ude(du,u,p,t,q)
         knownPred = convert(CuArray,knownDynamics(u,nothing,q))
         nnPred = convert(CuArray,first(neuralNetwork(u,p,st)))
 
-        knownPred .+ nnPred
+        du .= convert(CuArray,knownPred .+ nnPred)
     end
 
     # Closure with the known parameter
-    nn_dynamics(u,p,t) = ude(u,p,t,p_true)
+    nn_dynamics(du,u,p,t) = ude(du,u,p,t,p_true)
     # Define the problem
     prob_nn = ODEProblem(nn_dynamics,x0, (Float64(1),Float64(size(training_data,2))), p64)
     ## Function to train the network
     # Define a predictor
     function predict(p, X = x0)
         _prob = remake(prob_nn, u0 = X, tspan = (Float64(1),Float64(size(training_data,2))), p = p)
-        CUDA.@allowscalar convert(CuArray,solve(_prob, AutoTsit5(Rosenbrock23()), saveat = 1.,
+        convert(CuArray,solve(_prob, AutoTsit5(Rosenbrock23()), saveat = 1.,
                 abstol=1e-6, reltol=1e-6
                 ))
     end
@@ -136,13 +139,13 @@ function trainUDEModel(neuralNetwork,knownDynamics,training_data;needed_ps = Flo
 
     result_neuralode = Optimization.solve(optprob,
                                            ADAM(),
-                                           callback = callback,
+                                           #callback = callback,
                                            maxiters = 300)
 
     optprob2 = remake(optprob,u0 = result_neuralode.u)
     result_neuralode2 = Optimization.solve(optprob2,
                                             Optim.BFGS(initial_stepnorm=0.01),
-                                            callback=callback,
+                                            #callback=callback,
                                             allow_f_increases = false)
 
 
