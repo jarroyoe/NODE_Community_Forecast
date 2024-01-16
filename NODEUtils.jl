@@ -90,10 +90,10 @@ function trainUDEModel(neuralNetwork,knownDynamics,training_data;needed_ps = Flo
 
 
    function ude(du,u,p,t,q)
-        knownPred = convert(CuArray,knownDynamics(u,nothing,q))
-        nnPred = convert(CuArray,first(neuralNetwork(u,p,st)))
+        knownPred = knownDynamics(u,nothing,q)
+        nnPred = first(neuralNetwork(u,p,st))
 
-        du .= convert(CuArray,knownPred .+ nnPred)
+        du .= knownPred .+ nnPred
     end
 
     # Closure with the known parameter
@@ -104,9 +104,9 @@ function trainUDEModel(neuralNetwork,knownDynamics,training_data;needed_ps = Flo
     # Define a predictor
     function predict(p, X = x0)
         _prob = remake(prob_nn, u0 = X, tspan = (Float64(1),Float64(size(training_data,2))), p = p)
-        convert(CuArray,solve(_prob, AutoTsit5(Rosenbrock23()), saveat = 1.,
+        solve(_prob, AutoTsit5(Rosenbrock23()), saveat = 1.,
                 abstol=1e-6, reltol=1e-6
-                ))
+                )
     end
 
     lipschitz_regularizer = 0.5
@@ -153,11 +153,11 @@ function trainUDEModel(neuralNetwork,knownDynamics,training_data;needed_ps = Flo
 end
 
 function testUDEModel(params,neuralNetwork,knownDynamics,x0,T;p_true = nothing)
-    ps, st = Lux.setup(rng, neuralNetwork) |> Lux.gpu
+    ps, st = Lux.setup(rng, neuralNetwork) #|> Lux.gpu
     
     function ude(u,p,t,q)
-        knownPred = convert(CuArray,knownDynamics(u,nothing,q))
-        nnPred = convert(CuArray,first(neuralNetwork(u,p,st)))
+        knownPred = knownDynamics(u,nothing,q)
+        nnPred = first(neuralNetwork(u,p,st))
 
         knownPred .+ nnPred
     end
@@ -165,7 +165,7 @@ function testUDEModel(params,neuralNetwork,knownDynamics,x0,T;p_true = nothing)
     # Closure with the known parameter
     nn_dynamics(u,p,t) = ude(u,p,t,p_true)
     # Define the problem
-    prob_nn = ODEProblem(nn_dynamics,Lux.gpu(x0), (Float64(0),Float64(T)), params)
+    prob_nn = ODEProblem(nn_dynamics,x0, (Float64(0),Float64(T)), params)
     prediction = Array(solve(prob_nn, AutoTsit5(Rosenbrock23()), saveat = 1,
                 abstol=1e-6, reltol=1e-6
                 ))
