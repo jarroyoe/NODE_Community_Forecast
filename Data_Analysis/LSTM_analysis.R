@@ -64,7 +64,7 @@ LSTMPredictionsSD <- data.frame(CommunitySize = integer(),
 
 for(i in communitySizes){
   for(j in observationErrors){
-        for(n in 3:5){
+        for(n in 1:5){
 	  print(paste("Testing",i,j,n))
           currTimeSeries <- tryCatch(read.csv(paste(sep="",
                                            paste(sep="_","Data/timeSeries_communitySize",i,
@@ -84,7 +84,7 @@ for(i in communitySizes){
               batch_size = 1
               units = 1
               Epochs = 50
-              LSTMForecast = Reshape(rep(1,31*4),4,31)
+              LSTMForecast = Reshape(rep(1,51*4),4,51)
               
               for(l in 1:4){
                 model <- keras_model_sequential() 
@@ -102,7 +102,7 @@ for(i in communitySizes){
                   model %>% reset_states()
                 }
                 
-                L = 30
+                L = 50
                 scaler = scaledData$scaler
                 predictions = numeric(L+1)
                 predictions[1] = y_train[k-1]
@@ -129,16 +129,16 @@ for(i in communitySizes){
                                                    ObservationError = rep(as.double(j),totalEntries),
                                                    TrainingSize = rep(k,totalEntries), 
                                                    TimeSeriesID = rep(n,totalEntries),
-                                                   Time = k:(k+30),
+                                                   Time = k:(k+50),
                                                    PopID = rep(m,totalEntries),
                                                    LogDensity = predictions,
-                                                   RealValue = as.vector(t(currTimeSeries[m,k:(k+30)]))))
+                                                   RealValue = as.vector(t(currTimeSeries[m,k:(k+50)]))))
               LSTMPredictionsSD <- rbind(LSTMPredictionsSD,
                                           data.frame(CommunitySize = rep(i,totalEntries),
                                           ObservationError = rep(as.double(j),totalEntries),
                                           TrainingSize = rep(k,totalEntries), 
                                           TimeSeriesID = rep(n,totalEntries),
-                                          Time = k:(k+30),
+                                          Time = k:(k+50),
                                           PopID = rep(m,totalEntries),
                                           LogDensity = predictions,
                                           Lower95 = as.vector(t(low95)),
