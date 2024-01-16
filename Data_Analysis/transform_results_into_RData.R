@@ -25,7 +25,7 @@ for(i in communitySizes){
       for(l in timeAware){
         isAware <- ifelse(l=="autonomous","Time Agnostic","Time Aware")
         for(m in architecture){
-          for(n in 1:2){
+          for(n in 1:5){
             currTimeSeries <- read.csv(paste(sep="",
                                              paste(sep='_',"Data/timeSeries_communitySize",i,
                                              "observationError",j,"rep",n),".csv"),

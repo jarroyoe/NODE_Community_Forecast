@@ -28,7 +28,8 @@ allPredictions <- testPredictions  %>%  full_join(ARIMAPredictions %>% mutate(Mo
 
 RMSEs <- allPredictions %>% group_by(ModelType,ArchitectureType,CommunitySize,ObservationError,TrainingSize,TimeSeriesID,Time) %>% summarise(MeanLogDensity = mean(LogDensity),RealValue = mean(RealValue),Residuals = RealValue-MeanLogDensity) %>% mutate(RMSE = sqrt(sum(Residuals^2)),NRMSE = RMSE/(max(RealValue)-min(RealValue)))
 
-finalCommunitySizes <- allPredictions %>% group_by(ModelType,ArchitectureType,CommunitySize,ObservationError,TrainingSize,TimeSeriesID,PopID,Time) %>% summarise(MeanLogDensity = mean(LogDensity),RealValue = mean(RealValue)) %>%  group_by(ModelType,ArchitectureType,CommunitySize,ObservationError,TrainingSize,TimeSeriesID,PopID) %>% summarise(PredictedatEnd = last(MeanLogDensity)>0,atEnd = last(RealValue)>0) %>% group_by(ModelType,ArchitectureType,CommunitySize,ObservationError,TrainingSize,TimeSeriesID) %>% summarise(NumberPredictedAtEnd = sum(PredictedatEnd), NumberAtEnd = sum(atEnd), Factor = NumberPredictedAtEnd/NumberAtEnd)
+finalCommunitySizes <- allPredictions %>% group_by(ModelType,ArchitectureType,CommunitySize,ObservationError,TrainingSize,TimeSeriesID,PopID,Time) %>% summarise(MeanLogDensity = mean(LogDensity),RealValue = mean(RealValue)) %>%  group_by(ModelType,ArchitectureType,CommunitySize,ObservationError,TrainingSize,TimeSeriesID,PopID) %>% summarise(PredictedatEnd = last(MeanLogDensity)>0,atEnd = last(RealValue)>0) %>% group_by(ModelType,ArchitectureType,CommunitySize,ObservationError,TrainingSize,TimeSeriesID) %>% summarise(NumberPredictedAtEnd = sum(PredictedatEnd), NumberAtEnd = sum(atEnd))
+
 ```
 
 

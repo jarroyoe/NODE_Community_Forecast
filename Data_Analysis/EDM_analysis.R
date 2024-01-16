@@ -25,7 +25,7 @@ EDMPredictionsSD <- data.frame(CommunitySize = integer(),
 
 for(i in communitySizes){
   for(j in observationErrors){
-    for(n in 1:2){
+    for(n in 1:5){
       currTimeSeries <- read.csv(paste(sep="",
                                        paste(sep="_","Data/timeSeries_communitySize",i,
                                              "observationError",j,"rep",n),".csv"),
@@ -37,7 +37,7 @@ for(i in communitySizes){
             Simplex(
               dataFrame = as.data.frame(t(rbind(seq(1,200),currTimeSeries))),
               lib = paste(1,k),
-              pred = paste(k,k+30),
+              pred = paste(k,k+50),
               columns = paste(apply(as.matrix(seq(1,i)),2,function(x){paste("V",x+1,sep="")}),collapse = ' '),
               target = paste("V",m+1,sep=""),
               E = 2
@@ -51,16 +51,16 @@ for(i in communitySizes){
                                                ObservationError = rep(as.double(j),totalEntries),
                                                TrainingSize = rep(k,totalEntries), 
                                                TimeSeriesID = rep(n,totalEntries),
-                                               Time = k:(k+30),
+                                               Time = k:(k+50),
                                                PopID = rep(m,totalEntries),
                                                LogDensity = predictions,
-                                               RealValue = as.vector(t(currTimeSeries[m,k:(k+30)]))))
+                                               RealValue = as.vector(t(currTimeSeries[m,k:(k+50)]))))
           EDMPredictionsSD <- rbind(EDMPredictionsSD,
                                       data.frame(CommunitySize = rep(i,totalEntries),
                                                  ObservationError = rep(as.double(j),totalEntries),
                                                  TrainingSize = rep(k,totalEntries), 
                                                  TimeSeriesID = rep(n,totalEntries),
-                                                 Time = k:(k+30),
+                                                 Time = k:(k+50),
                                                  PopID = rep(m,totalEntries),
                                                  LogDensity = predictions,
                                                  Lower95 = as.vector(t(low95)),

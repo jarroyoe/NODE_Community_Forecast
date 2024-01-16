@@ -30,7 +30,10 @@ allPredictions <- testPredictions  %>%  full_join(ARIMAPredictions %>% mutate(Mo
 
 RMSEs <- allPredictions %>% filter(Time<=TrainingSize+10) %>% group_by(ModelType,ArchitectureType,CommunitySize,ObservationError,TrainingSize,TimeSeriesID,Time,PopID) %>% summarise(MeanLogDensity = mean(LogDensity),RealValue = mean(RealValue),Residuals = RealValue-MeanLogDensity) %>% group_by(ModelType,ArchitectureType,CommunitySize,ObservationError,TrainingSize,TimeSeriesID) %>%  summarise(RMSE = sqrt(sum(Residuals^2)),NRMSE = RMSE/(max(RealValue)-min(RealValue)))
 
-finalCommunitySizes <- allPredictions %>% group_by(ModelType,ArchitectureType,CommunitySize,ObservationError,TrainingSize,TimeSeriesID,PopID,Time) %>% summarise(MeanLogDensity = mean(LogDensity),RealValue = mean(RealValue)) %>%  group_by(ModelType,ArchitectureType,CommunitySize,ObservationError,TrainingSize,TimeSeriesID,PopID) %>% summarise(PredictedatEnd = last(MeanLogDensity)>0,atEnd = last(RealValue)>0) %>% group_by(ModelType,ArchitectureType,CommunitySize,ObservationError,TrainingSize,TimeSeriesID) %>% summarise(NumberPredictedAtEnd = sum(PredictedatEnd), NumberAtEnd = sum(atEnd), Factor = NumberPredictedAtEnd/NumberAtEnd)
+finalCommunitySizes <- allPredictions %>% group_by(ModelType,ArchitectureType,CommunitySize,ObservationError,TrainingSize,TimeSeriesID,PopID,Time) %>% summarise(MeanLogDensity = mean(LogDensity),RealValue = mean(RealValue)) %>%  group_by(ModelType,ArchitectureType,CommunitySize,ObservationError,TrainingSize,TimeSeriesID,PopID) %>% summarise(PredictedatEnd = last(MeanLogDensity)>0,atEnd = last(RealValue)>0) %>% group_by(ModelType,ArchitectureType,CommunitySize,ObservationError,TrainingSize,TimeSeriesID) %>% summarise(NumberPredictedAtEnd = sum(PredictedatEnd), NumberAtEnd = sum(atEnd))
+
+#Ensure all community sizes for a given time series match
+finalCommunitySizes <- finalCommunitySizes %>% select(-NumberAtEnd) %>% left_join(finalCommunitySizes %>% group_by(CommunitySize,ObservationError,TrainingSize,TimeSeriesID) %>% summarize(NumberAtEnd=min(NumberAtEnd))) %>% mutate(Factor = NumberPredictedAtEnd/NumberAtEnd)
 ```
 #ANOVA for RMSE
 ```{r}
@@ -43,6 +46,6 @@ RMSEs %>% lmer(NRMSE~ModelType+ArchitectureType+CommunitySize+ObservationError+T
 ```{r}
 finalCommunitySizes %>% lmer(NumberPredictedAtEnd~ModelType+ArchitectureType+CommunitySize+ObservationError+TrainingSize+(1|TimeSeriesID), data = .) %>% 
   anova() %>% tidy() %>% mutate(contribution = sumsq/sum(sumsq)) %>% filter(term != "Residuals") %>% ggplot(aes(reorder(term,contribution),contribution* 100,fill=term)) +
-  geom_bar(stat='identity') + xlab("Variable") + ylab("Contribution to variation (%)") + theme_bw() + ylim(0,55)+labs(fill = "Term") + theme(text=element_text(size=20))
+  geom_bar(stat='identity') + xlab("Variable") + ylab("Contribution to variation (%)") + theme_bw() +labs(fill = "Term") + theme(text=element_text(size=20))
 ```
-# Interval score
+
